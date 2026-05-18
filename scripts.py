@@ -3080,7 +3080,7 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
         return
 
     def _find_longest_line_start_time(srt_path):
-        """Trả về start-time (HH:MM:SS,mmm) của dòng phụ đề dài nhất trong file SRT."""
+        """Lấy mốc thời gian từ frame thứ 5 trong SRT (ưu tiên end-time, định dạng HH:MM:SS)."""
         try:
             with open(srt_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -3088,12 +3088,14 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
             return None
 
         blocks = re.split(r"\n\s*\n", content.strip())
-        best_start_time = None
-        max_len = -1
+        frame_index = 5  # luôn lấy mốc từ timerframe 5
 
         for block in blocks:
             lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
-            if len(lines) < 3:
+            if len(lines) < 2:
+                continue
+
+            if lines[0] != str(frame_index):
                 continue
 
             timing_line = lines[1]
@@ -3101,15 +3103,10 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
             if not m:
                 continue
 
-            start_time = m.group(1)
-            subtitle_text = " ".join(lines[2:]).strip()
-            text_len = len(subtitle_text)
+            end_time = m.group(2)
+            return end_time.split(",")[0]
 
-            if text_len > max_len:
-                max_len = text_len
-                best_start_time = start_time
-
-        return best_start_time
+        return None
 
     # Export preview PNG có viền đỏ
     if s10mode == "test":

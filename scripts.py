@@ -2887,6 +2887,39 @@ def run_srt_step9():
         match = re.search(r"\[(.*?)\]", t)
         return match.group(1) if match else ""
 
+    def parse_longest_sentence_from_report(report_path="bk_wlongest"):
+        if not os.path.exists(report_path):
+            return ""
+        try:
+            with open(report_path, "r", encoding="utf-8") as f:
+                report = f.read()
+            match = re.search(r"Longest Sentence:\s*'(.+?)'\s*\(\d+\s*chars\)\s*at", report, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+        except Exception as e:
+            print(f"    [WARN] Không đọc được {report_path}: {e}")
+        return ""
+
+    def find_best_idx_for_sentence(target_sentence, all_blocks):
+        target_norm = normalize_for_compare(target_sentence)
+        if not target_norm:
+            return -1
+
+        matched_idxs = [i for i, b in enumerate(all_blocks) if normalize_for_compare(b[2]) == target_norm]
+        if not matched_idxs:
+            return -1
+
+        # Ưu tiên block có [word] dài nhất, giống logic hiện tại
+        best_idx = -1
+        best_len = -1
+        for idx in matched_idxs:
+            word = get_bracket_word(all_blocks[idx][2])
+            pure_word = re.sub(r'[^a-zA-Z0-9]', '', word)
+            if len(pure_word) > best_len:
+                best_len = len(pure_word)
+                best_idx = idx
+        return best_idx
+
     blocks = get_blocks(srt_path)
     if len(blocks) < 3:
         print("    [ERROR] File SRT quá ngắn.")
@@ -2902,19 +2935,12 @@ def run_srt_step9():
             max_norm_len = len(norm_txt)
             target_norm_text = norm_txt
 
-    # 2. Tìm block chứa từ trong ngoặc dài nhất thuộc về câu đó
-    target_absolute_idx = -1
+    # 2. Tìm block chứa từ trong ngoặc dài nhất thuộc về câu auto-detect
+    target_absolute_idx = find_best_idx_for_sentence(target_norm_text, blocks)
     max_word_len = -1
-
-    for i, b in enumerate(blocks):
-        # So sánh chuỗi đã chuẩn hóa để đảm bảo khớp dù mất dấu chấm
-        if normalize_for_compare(b[2]) == target_norm_text:
-            word = get_bracket_word(b[2])
-            # Xóa dấu câu khỏi từ để đếm độ dài chuẩn
-            pure_word = re.sub(r'[^a-zA-Z0-9]', '', word)
-            if len(pure_word) > max_word_len:
-                max_word_len = len(pure_word)
-                target_absolute_idx = i
+    if target_absolute_idx != -1:
+        auto_word = get_bracket_word(blocks[target_absolute_idx][2])
+        max_word_len = len(re.sub(r'[^a-zA-Z0-9]', '', auto_word))
 
     if target_absolute_idx != -1:
         longest_sentence = blocks[target_absolute_idx][2].replace("[", "").replace("]", "").strip()
@@ -2924,20 +2950,40 @@ def run_srt_step9():
         print("    [ERROR] Không tìm thấy từ phù hợp.")
         return
 
-    # 3. Trích xuất 3 TL và Offset (Giữ nguyên logic cũ)
-    start_idx = max(0, target_absolute_idx - 1)
-    end_idx = min(len(blocks) - 1, target_absolute_idx + 1)
-    selected_blocks = blocks[start_idx : end_idx + 1]
+    # 3. Trích xuất thêm 1 câu từ file bk_wlongest (nếu có)
+    report_sentence = parse_longest_sentence_from_report("bk_wlongest")
+    report_target_idx = find_best_idx_for_sentence(report_sentence, blocks) if report_sentence else -1
 
-    orig_start_first = time_to_seconds(selected_blocks[0][1].split(" --> ")[0])
-    offset = orig_start_first - 0.5
+    # 4. Xuất .srt: mỗi câu target sẽ trích 3 timeline liên tục như logic cũ
+    all_target_idxs = [target_absolute_idx]
+    if report_target_idx != -1 and report_target_idx not in all_target_idxs:
+        all_target_idxs.append(report_target_idx)
 
     final_output = []
-    for i, b in enumerate(selected_blocks, 1):
-        ts = b[1].split(" --> ")
-        s_sec = time_to_seconds(ts[0]) - offset
-        e_sec = time_to_seconds(ts[1]) - offset
-        final_output.append(f"{i}\n{format_timestamp(s_sec)} --> {format_timestamp(e_sec)}\n{b[2].strip()}")
+    running_idx = 1
+    current_base = 0.0
+    for target_idx in all_target_idxs:
+        start_idx = max(0, target_idx - 1)
+        end_idx = min(len(blocks) - 1, target_idx + 1)
+        selected_blocks = blocks[start_idx : end_idx + 1]
+
+        orig_start_first = time_to_seconds(selected_blocks[0][1].split(" --> ")[0])
+        offset = orig_start_first - 0.5
+
+        local_entries = []
+        for b in selected_blocks:
+            ts = b[1].split(" --> ")
+            s_sec = time_to_seconds(ts[0]) - offset
+            e_sec = time_to_seconds(ts[1]) - offset
+            local_entries.append((s_sec, e_sec, b[2].strip()))
+
+        snippet_shift = current_base - local_entries[0][0]
+        for s_sec, e_sec, text in local_entries:
+            final_output.append(f"{running_idx}\n{format_timestamp(s_sec + snippet_shift)} --> {format_timestamp(e_sec + snippet_shift)}\n{text}")
+            running_idx += 1
+
+        # cộng thêm khoảng đệm 0.5s để 2 đoạn không đè nhau
+        current_base = local_entries[-1][1] + snippet_shift + 0.5
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n\n".join(final_output) + "\n\n")
@@ -2946,6 +2992,11 @@ def run_srt_step9():
     print(f"    --> Longest sentence found: \"{longest_sentence}\"")
     print(f"        --> Total characters: {total_chars} (including spaces & punctuation)")
     print(f"    --> Longest word found: \"{get_bracket_word(blocks[target_absolute_idx][2])}\" ({max_word_len} chars)\n")
+    if report_sentence:
+        if report_target_idx != -1:
+            print(f"    --> bk_wlongest sentence added: \"{report_sentence}\"")
+        else:
+            print(f"    --> [WARN] Không match được câu từ bk_wlongest trong fin_aud_1pcap.srt")
     print("--- Step 9 Finished ---\n")
     step_pass_small_2l()
     printf("\nPLEASE_USE: 'python.exe scripts.py 10' TO RUN NEXT STEP\n")

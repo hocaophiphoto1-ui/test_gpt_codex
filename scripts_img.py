@@ -30,15 +30,28 @@ import subprocess
 from scripts import get_scripts, get_searches
 
 
-prompt_more = """
-GỢI Ý RIÊNG CHO ẢNH NÀY:
-- khoảng không bên trái, phải và trên cùng có nhiều chỗ tróng vì nam nữ đứng gần nhau co về giữa
-- có thể viết trên 1 line nằm trên đỉnh ngay chính giữa ảnh
-- có thể viết mỗi chữ trên 1 line và nằm align về bên trái
-- có thể viết mỗi chữ trên 1 line và nằm align về bên phải
-- chữ phải to khoảng 140 px - 150 px
-"""
-#- hai bên góc trái và góc phải đang tróng, có thể xếp dọc theo góc trái (align bên trái), hoặc dọc theo góc phải (align bên phải)
+def get_prompt_more(path="scripts.eze"):
+    """Đọc biến prompt_more dạng triple-quote từ file scripts.eze nếu có."""
+    if not os.path.exists(path):
+        print(f"    WARNING: File {path} was not found. prompt_more will be empty.")
+        return ""
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print(f"    ERROR when reading file {path}: {e}")
+        return ""
+
+    match = re.search(r'prompt_more\s*=\s*"""(.*?)"""', content, re.DOTALL)
+    if match:
+        return match.group(1)
+
+    print(f"    WARNING: Structure prompt_more = \"\"\"...\"\"\" not found in {path}. prompt_more will be empty.")
+    return ""
+
+
+prompt_more = get_prompt_more()
 
 
 def printf(*args):

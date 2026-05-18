@@ -3079,7 +3079,39 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
         print(f"\n    --> [ERROR] An unexpected error occurred: {e}")
         return
 
-    # Export 1 frame PNG có viền đỏ
+    def _find_longest_line_end_time(srt_path):
+        """Trả về end-time (HH:MM:SS,mmm) của dòng phụ đề dài nhất trong file SRT."""
+        try:
+            with open(srt_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception:
+            return None
+
+        blocks = re.split(r"\n\s*\n", content.strip())
+        best_end_time = None
+        max_len = -1
+
+        for block in blocks:
+            lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+            if len(lines) < 3:
+                continue
+
+            timing_line = lines[1]
+            m = re.match(r"(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})", timing_line)
+            if not m:
+                continue
+
+            end_time = m.group(2)
+            subtitle_text = " ".join(lines[2:]).strip()
+            text_len = len(subtitle_text)
+
+            if text_len > max_len:
+                max_len = text_len
+                best_end_time = end_time
+
+        return best_end_time
+
+    # Export preview PNG có viền đỏ
     if s10mode == "test":
         try:
             png_output = os.path.join(base_dir, "fin_aud_1pcap_lest.png")
@@ -3094,6 +3126,24 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
             print(f"\n        --> [INFO] Export preview PNG with red border...")
             subprocess.run(ffmpeg_preview_cmd, shell=True, check=True)
             print(f"    --> [SUCCESS] Generated preview: {png_output}")
+
+            longest_end_time = _find_longest_line_end_time(srt_input)
+            if longest_end_time:
+                png_output_longest = os.path.join(base_dir, "fin_aud_1pcap_lest1.png")
+                longest_end_ffmpeg = longest_end_time.replace(",", ".")
+                ffmpeg_longest_cmd = (
+                    f'ffmpeg -y -ss {longest_end_ffmpeg} -i "{output_mov}" '
+                    f'-filter_complex '
+                    f'"color=c=white:s=1920x1080[bg];'
+                    f'[bg][0:v]overlay=0:0,'
+                    f'drawbox=x=0:y=0:w=1920:h=1080:color=red@1.0:thickness=4" '
+                    f'-frames:v 1 "{png_output_longest}"'
+                )
+                print(f"        --> [INFO] Export longest-line preview at {longest_end_time}...")
+                subprocess.run(ffmpeg_longest_cmd, shell=True, check=True)
+                print(f"    --> [SUCCESS] Generated longest-line preview: {png_output_longest}")
+            else:
+                print(f"        --> [WARNING] Không tìm được timestamp câu dài nhất trong {srt_input}")
         except Exception as e:
             print(f"        --> [WARNING] Failed to export preview PNG: {e}")
 

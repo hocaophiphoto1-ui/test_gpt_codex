@@ -1607,10 +1607,49 @@ Write a summary of the main content of the video in 5 - 10 sentences.
     with open("bk_description.txt", "w", encoding="utf-8") as f:
         f.write(bk_description)
 
-    return bk_description
-
     printf("\nSTEP 18 DONE\n")
 
+    return bk_description
+
+
+
+def rename_all_final_file():
+    if not fin_title:
+        print("    ERROR: fin_title is empty. Cannot rename final files.")
+        return False
+
+    rename_tasks = [
+        ("build_video_final.mp4", f"{fin_title}.mp4"),
+        ("build_video_final.srt", f"{fin_title}.srt"),
+        ("bk_description.txt", f"{fin_title}.txt"),
+    ]
+    copy_tasks = [
+        ("scripts.eze", f"{fin_title}.eze"),
+    ]
+
+    success = True
+
+    for src, dst in rename_tasks:
+        if not os.path.exists(src):
+            print(f"    WARNING: File {src} was not found. Skip rename to {dst}.")
+            success = False
+            continue
+
+        os.replace(src, dst)
+        print(f"    RENAMED: {src} -> {dst}")
+
+    for src, dst in copy_tasks:
+        if not os.path.exists(src):
+            print(f"    WARNING: File {src} was not found. Skip copy to {dst}.")
+            success = False
+            continue
+
+        shutil.copy2(src, dst)
+        print(f"    COPIED: {src} -> {dst}")
+
+    printf("\nSTEP 18 RENAME DONE\n")
+
+    return success
 
 # =========================
 # RUN (GIỮ NGUYÊN)
@@ -1645,3 +1684,4 @@ if __name__ == "__main__":
             create_thumb_wtext(num=6)
         elif mode == "18":
             create_description()
+            rename_all_final_file()

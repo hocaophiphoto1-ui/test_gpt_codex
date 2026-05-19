@@ -27,6 +27,7 @@ import string
 import srt
 import shlex
 import unicodedata
+import threading
 
 import warnings
 
@@ -3379,12 +3380,39 @@ def run_pupcaps_step11(s11mode="full", m_size=140, w_size=140, m_space=-5, w_spa
             gen_fin_aud_2full(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_FULL_CSS, S_H_W, E_H_W, S_S_W, E_S_W, S_M_W, E_M_W, S_B_W, E_B_W, walign_code, W_spacing)
             run_fin_aud_2full(WOMAN_FULL_CSS, WOMAN_FULL_SRT, WOMAN_FULL_MOV, WOMAN_FULL_MP4, report, "woman")
         else:
-            print("    [MODE FULL] Generating CSS and Video for MAN...")
-            gen_fin_aud_2full(MAN_HOOK, MAN_START, MAN_MAIN, MAN_BYE, MAN_SIZE, MAN_COLOR, MAN_FULL_CSS, S_H_M, E_H_M, S_S_M, E_S_M, S_M_M, E_M_M, S_B_M, E_B_M, malign_code, M_spacing)
-            run_fin_aud_2full(MAN_FULL_CSS, MAN_FULL_SRT, MAN_FULL_MOV, MAN_FULL_MP4, report, "man")
-            print("    [MODE FULL] Generating CSS and Video for WOMAN...")
-            gen_fin_aud_2full(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_FULL_CSS, S_H_W, E_H_W, S_S_W, E_S_W, S_M_W, E_M_W, S_B_W, E_B_W, walign_code, W_spacing)
-            run_fin_aud_2full(WOMAN_FULL_CSS, WOMAN_FULL_SRT, WOMAN_FULL_MOV, WOMAN_FULL_MP4, report, "woman")
+            print("    [MODE FULL] Generating CSS and Video for MAN/WOMAN in parallel...")
+
+            thread_errors = []
+
+            def run_man_full():
+                try:
+                    print("    [MODE FULL] [MAN] Start...")
+                    gen_fin_aud_2full(MAN_HOOK, MAN_START, MAN_MAIN, MAN_BYE, MAN_SIZE, MAN_COLOR, MAN_FULL_CSS, S_H_M, E_H_M, S_S_M, E_S_M, S_M_M, E_M_M, S_B_M, E_B_M, malign_code, M_spacing)
+                    run_fin_aud_2full(MAN_FULL_CSS, MAN_FULL_SRT, MAN_FULL_MOV, MAN_FULL_MP4, report, "man")
+                    print("    [MODE FULL] [MAN] Done.")
+                except Exception as e:
+                    thread_errors.append(("man", str(e)))
+
+            def run_woman_full():
+                try:
+                    print("    [MODE FULL] [WOMAN] Start...")
+                    gen_fin_aud_2full(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_FULL_CSS, S_H_W, E_H_W, S_S_W, E_S_W, S_M_W, E_M_W, S_B_W, E_B_W, walign_code, W_spacing)
+                    run_fin_aud_2full(WOMAN_FULL_CSS, WOMAN_FULL_SRT, WOMAN_FULL_MOV, WOMAN_FULL_MP4, report, "woman")
+                    print("    [MODE FULL] [WOMAN] Done.")
+                except Exception as e:
+                    thread_errors.append(("woman", str(e)))
+
+            man_thread = threading.Thread(target=run_man_full, name="step11-man-thread")
+            woman_thread = threading.Thread(target=run_woman_full, name="step11-woman-thread")
+
+            man_thread.start()
+            woman_thread.start()
+
+            man_thread.join()
+            woman_thread.join()
+
+            if thread_errors:
+                raise RuntimeError(f"Step 11 parallel full mode failed: {thread_errors}")
 
     print("--- Step 11 Finished ---\n")
     step_pass_small_2l()

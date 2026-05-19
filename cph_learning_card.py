@@ -133,6 +133,12 @@ def print_card(card):
     #print()
 
 
+def is_easy_by_word_input(user_input, card_question):
+    user_text = user_input.strip().lower()
+    question_text = card_question.splitlines()[0].strip().lower() if card_question else ""
+    return user_text != "" and user_text == question_text
+
+
 # =========================================================
 # MAIN LOOP
 # =========================================================
@@ -159,12 +165,21 @@ def reviewer_loop():
                 print("1 = AGAIN; 2 = HARD; 3 = GOOD; 4 = EASY; q = QUIT")
 
             cmd = input("Select: ").strip()
-            if cmd   == "1": answer_again()
-            elif cmd == "2": answer_hard()
-            elif cmd == "3": answer_good()
-            elif cmd == "4": answer_easy()
-            elif cmd.lower() == "q": break
-            else: print("Invalid input")
+            if cmd == "1":
+                answer_again()
+            elif cmd == "2":
+                answer_hard()
+            elif cmd == "3":
+                answer_good()
+            elif cmd == "4":
+                answer_easy()
+            elif cmd.lower() == "q":
+                break
+            elif is_easy_by_word_input(cmd, card["question"]):
+                answer_easy()
+            else:
+                print("NOT YET CORRECT")
+                continue
 
             time.sleep(0.3)
 

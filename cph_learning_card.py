@@ -7,6 +7,7 @@ import requests
 import time
 import html
 import re
+import unicodedata
 
 ANKI_URL = "http://localhost:8765"
 
@@ -143,32 +144,44 @@ def print_card(card):
     #print()
 
 
+def _normalize_word_text(text):
+    if text is None:
+        return ""
+
+    # strip accents/diacritics for tolerant matching
+    text = unicodedata.normalize("NFKD", str(text))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower().strip()
+
+    # keep letters only, collapse separators
+    tokens = re.findall(r"[a-z]+", text)
+    return " ".join(tokens)
+
+
 def _extract_target_word(card_question, card_answer="", card_word=""):
-    # Best source: explicit Word field from note model
-    if card_word:
-        parts = re.findall(r"[a-zA-Z]+", card_word.lower())
-        if parts:
-            return "".join(parts)
+    # Best source: exact "Word" field from note
+    normalized_word_field = _normalize_word_text(card_word)
+    if normalized_word_field:
+        return normalized_word_field
 
-    # Prefer explicit answer line like: "elementary là từ đúng"
+    # Fallback: explicit answer line like "elementary la tu dung"
     if card_answer:
-        first_line = card_answer.splitlines()[0].strip()
-        m = re.match(r"^([a-zA-Z][a-zA-Z'\-]*)\s+là từ đúng$", first_line, flags=re.I)
+        first_line = _normalize_word_text(card_answer.splitlines()[0])
+        m = re.match(r"^([a-z][a-z\s\-']*)\s+la\s+tu\s+dung$", first_line)
         if m:
-            return m.group(1).lower()
+            return _normalize_word_text(m.group(1))
 
-    # Fallback: keep only alphabetic chunks from question and choose the longest one
+    # Last fallback: best effort from question (often IPA/noisy)
     if card_question:
-        first_line = card_question.splitlines()[0].strip().lower()
-        words = re.findall(r"[a-z]+", first_line)
-        if words:
-            return max(words, key=len)
+        first_line = _normalize_word_text(card_question.splitlines()[0])
+        if first_line:
+            return first_line
 
     return ""
 
 
 def is_easy_by_word_input(user_input, card_question, card_answer="", card_word=""):
-    user_text = user_input.strip().lower()
+    user_text = _normalize_word_text(user_input)
     target_word = _extract_target_word(card_question, card_answer, card_word)
     return user_text != "" and user_text == target_word
 

@@ -9,6 +9,11 @@ import html
 import re
 import unicodedata
 
+
+def printf(*args):
+    print("".join(map(str, args)))
+
+
 ANKI_URL = "http://localhost:8765"
 
 
@@ -79,23 +84,30 @@ def get_learning_note():
 
     question = clean_html(card.get("question", ""))
     answer = clean_html(card.get("answer", ""))
+    Word = clean_html(card.get("Word", ""))
+
 
     data = {
         "card_id": card.get("cardId"),
         "note_id": card.get("noteId"),
         "question": question,
         "answer": answer,
-        "word": ""
+        "word": Word
     }
 
-    # Read note fields and prefer exact Word field for answer matching
-    note_id = data["note_id"]
-    if note_id:
-        note_info = invoke("notesInfo", notes=[note_id])
-        if note_info and isinstance(note_info, list):
-            fields = note_info[0].get("fields", {})
-            word_field = fields.get("Word", {})
-            data["word"] = str(word_field.get("value", "")).strip().lower()
+    # # Read note fields and prefer exact Word field for answer matching
+    # note_id = data["note_id"]
+    # card_id = data["card_id"]
+    # if card_id:
+    #     note_info = invoke("notesInfo", notes=[note_id])
+    #     if note_info and isinstance(note_info, list):
+    #         fields = note_info[0].get("fields", {})
+    #         word_field = fields.get("Word", {})
+    #         printf("DEBUG3", word_field)
+    #         data["word"] = str(word_field.get("value", "")).strip().lower()
+
+    # DEBUG
+    with open("123.test", "w", encoding="utf-8") as f: f.write(str(card))
 
     return data
 
@@ -212,6 +224,10 @@ def reviewer_loop():
                 print("1 = AGAIN; 2 = HARD; 3 = GOOD; 4 = EASY; q = QUIT")
 
             cmd = input("Select: ").strip()
+
+            printf ("cmd: ", cmd)
+            printf ("DEBUG1: ", card.get("word", ""))
+            printf ("DEBUG2: ", card["word"])
             if cmd == "1":
                 answer_again()
             elif cmd == "2":

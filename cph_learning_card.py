@@ -83,8 +83,18 @@ def get_learning_note():
         "card_id": card.get("cardId"),
         "note_id": card.get("noteId"),
         "question": question,
-        "answer": answer
+        "answer": answer,
+        "word": ""
     }
+
+    # Read note fields and prefer exact Word field for answer matching
+    note_id = data["note_id"]
+    if note_id:
+        note_info = invoke("notesInfo", notes=[note_id])
+        if note_info and isinstance(note_info, list):
+            fields = note_info[0].get("fields", {})
+            word_field = fields.get("Word", {})
+            data["word"] = str(word_field.get("value", "")).strip().lower()
 
     return data
 
@@ -133,7 +143,13 @@ def print_card(card):
     #print()
 
 
-def _extract_target_word(card_question, card_answer=""):
+def _extract_target_word(card_question, card_answer="", card_word=""):
+    # Best source: explicit Word field from note model
+    if card_word:
+        parts = re.findall(r"[a-zA-Z]+", card_word.lower())
+        if parts:
+            return "".join(parts)
+
     # Prefer explicit answer line like: "elementary là từ đúng"
     if card_answer:
         first_line = card_answer.splitlines()[0].strip()
@@ -151,9 +167,9 @@ def _extract_target_word(card_question, card_answer=""):
     return ""
 
 
-def is_easy_by_word_input(user_input, card_question, card_answer=""):
+def is_easy_by_word_input(user_input, card_question, card_answer="", card_word=""):
     user_text = user_input.strip().lower()
-    target_word = _extract_target_word(card_question, card_answer)
+    target_word = _extract_target_word(card_question, card_answer, card_word)
     return user_text != "" and user_text == target_word
 
 
@@ -193,7 +209,7 @@ def reviewer_loop():
                 answer_easy()
             elif cmd.lower() == "q":
                 break
-            elif is_easy_by_word_input(cmd, card["question"], card["answer"]):
+            elif is_easy_by_word_input(cmd, card["question"], card["answer"], card.get("word", "")):
                 answer_easy()
             else:
                 print("NOT YET CORRECT")

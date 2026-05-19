@@ -84,7 +84,17 @@ def get_learning_note():
 
     question = clean_html(card.get("question", ""))
     answer = clean_html(card.get("answer", ""))
-    Word = clean_html(card.get("Word", ""))
+    # Word field from guiCurrentCard is usually nested under:
+    # card["fields"]["Word"]["value"]
+    # Keep backward-compatibility with older shapes.
+    fields = card.get("fields", {}) or {}
+    word_field_obj = fields.get("Word", {}) if isinstance(fields, dict) else {}
+    word_value = ""
+    if isinstance(word_field_obj, dict):
+        word_value = word_field_obj.get("value", "")
+    if not word_value:
+        word_value = card.get("Word", "")
+    Word = clean_html(word_value)
 
 
     data = {
@@ -105,9 +115,6 @@ def get_learning_note():
     #         word_field = fields.get("Word", {})
     #         printf("DEBUG3", word_field)
     #         data["word"] = str(word_field.get("value", "")).strip().lower()
-
-    # DEBUG
-    with open("123.test", "w", encoding="utf-8") as f: f.write(str(card))
 
     return data
 
@@ -225,9 +232,6 @@ def reviewer_loop():
 
             cmd = input("Select: ").strip()
 
-            printf ("cmd: ", cmd)
-            printf ("DEBUG1: ", card.get("word", ""))
-            printf ("DEBUG2: ", card["word"])
             if cmd == "1":
                 answer_again()
             elif cmd == "2":

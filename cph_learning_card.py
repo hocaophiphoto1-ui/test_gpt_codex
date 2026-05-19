@@ -133,10 +133,28 @@ def print_card(card):
     #print()
 
 
-def is_easy_by_word_input(user_input, card_question):
+def _extract_target_word(card_question, card_answer=""):
+    # Prefer explicit answer line like: "elementary là từ đúng"
+    if card_answer:
+        first_line = card_answer.splitlines()[0].strip()
+        m = re.match(r"^([a-zA-Z][a-zA-Z'\-]*)\s+là từ đúng$", first_line, flags=re.I)
+        if m:
+            return m.group(1).lower()
+
+    # Fallback: keep only alphabetic chunks from question and choose the longest one
+    if card_question:
+        first_line = card_question.splitlines()[0].strip().lower()
+        words = re.findall(r"[a-z]+", first_line)
+        if words:
+            return max(words, key=len)
+
+    return ""
+
+
+def is_easy_by_word_input(user_input, card_question, card_answer=""):
     user_text = user_input.strip().lower()
-    question_text = card_question.splitlines()[0].strip().lower() if card_question else ""
-    return user_text != "" and user_text == question_text
+    target_word = _extract_target_word(card_question, card_answer)
+    return user_text != "" and user_text == target_word
 
 
 # =========================================================
@@ -175,7 +193,7 @@ def reviewer_loop():
                 answer_easy()
             elif cmd.lower() == "q":
                 break
-            elif is_easy_by_word_input(cmd, card["question"]):
+            elif is_easy_by_word_input(cmd, card["question"], card["answer"]):
                 answer_easy()
             else:
                 print("NOT YET CORRECT")

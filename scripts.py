@@ -3362,12 +3362,41 @@ def run_pupcaps_step11(s11mode="full", m_size=140, w_size=140, m_space=-5, w_spa
             gen_fin_aud_2lest(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_TEST_CSS, walign_code, W_spacing)
             run_fin_aud_2lest(WOMAN_TEST_CSS, WOMAN_TEST_SRT, WOMAN_TEST_MOV, WOMAN_TEST_MP4)
         else:
-            print("    [MODE TEST] Generating CSS and Video for MAN ...")
-            gen_fin_aud_2lest(MAN_HOOK, MAN_START, MAN_MAIN, MAN_BYE, MAN_SIZE, MAN_COLOR, MAN_TEST_CSS, malign_code, M_spacing)
-            run_fin_aud_2lest(MAN_TEST_CSS, MAN_TEST_SRT, MAN_TEST_MOV, MAN_TEST_MP4)
-            print("    [MODE TEST] Generating CSS and Video for WOMAN ...")
-            gen_fin_aud_2lest(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_TEST_CSS, walign_code, W_spacing)
-            run_fin_aud_2lest(WOMAN_TEST_CSS, WOMAN_TEST_SRT, WOMAN_TEST_MOV, WOMAN_TEST_MP4)
+            print("    [MODE TEST] Generating CSS and Video for MAN/WOMAN in parallel...")
+
+            thread_errors = []
+
+            def run_man_test():
+                try:
+                    print("    [MODE TEST] [MAN] Start...")
+                    gen_fin_aud_2lest(MAN_HOOK, MAN_START, MAN_MAIN, MAN_BYE, MAN_SIZE, MAN_COLOR, MAN_TEST_CSS, malign_code, M_spacing)
+                    run_fin_aud_2lest(MAN_TEST_CSS, MAN_TEST_SRT, MAN_TEST_MOV, MAN_TEST_MP4)
+                    print("    [MODE TEST] [MAN] Done.")
+                except Exception as e:
+                    thread_errors.append(("man", str(e)))
+
+            def run_woman_test():
+                try:
+                    print("    [MODE TEST] [WOMAN] Start...")
+                    gen_fin_aud_2lest(WOMAN_HOOK, WOMAN_START, WOMAN_MAIN, WOMAN_BYE, WOMAN_SIZE, WOMAN_COLOR, WOMAN_TEST_CSS, walign_code, W_spacing)
+                    run_fin_aud_2lest(WOMAN_TEST_CSS, WOMAN_TEST_SRT, WOMAN_TEST_MOV, WOMAN_TEST_MP4)
+                    print("    [MODE TEST] [WOMAN] Done.")
+                except Exception as e:
+                    thread_errors.append(("woman", str(e)))
+
+            man_thread = threading.Thread(target=run_man_test, name="step11-test-man-thread")
+            woman_thread = threading.Thread(target=run_woman_test, name="step11-test-woman-thread")
+
+            man_thread.start()
+            woman_thread.start()
+
+            man_thread.join()
+            woman_thread.join()
+
+            if thread_errors:
+                for role, err in thread_errors:
+                    print(f"    [MODE TEST] [{role.upper()}] ERROR: {err}")
+                raise RuntimeError("Step11 test parallel render failed. Check logs above.")
 
     # 4. Mode FULL
     elif s11mode == "full":

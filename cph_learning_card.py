@@ -82,7 +82,6 @@ def get_learning_note():
     if not card:
         return None
 
-    question = clean_html(card.get("question", ""))
     answer = clean_html(card.get("answer", ""))
     # Word field from guiCurrentCard is usually nested under:
     # card["fields"]["Word"]["value"]
@@ -94,8 +93,22 @@ def get_learning_note():
         word_value = word_field_obj.get("value", "")
     if not word_value:
         word_value = card.get("Word", "")
-    Word = clean_html(word_value)
+    Word = word_value
 
+    #question = clean_html(card.get("question", ""))
+    question_field_obj = fields.get("IPA", {}) if isinstance(fields, dict) else {}
+    question_value = ""
+    if isinstance(word_field_obj, dict):
+        question_value = question_field_obj.get("value", "")
+    if not question_value:
+        question_value = card.get("IPA", "")
+    question = question_value
+
+    # DEBUG
+    #with open("123.test", "w", encoding="utf-8") as f: f.write(str(card))
+    #printf ("word_field_obj: ", word_field_obj)
+    #printf ("word_value: ", word_value)
+    #printf ("Word: ", Word)
 
     data = {
         "card_id": card.get("cardId"),
@@ -104,17 +117,6 @@ def get_learning_note():
         "answer": answer,
         "word": Word
     }
-
-    # # Read note fields and prefer exact Word field for answer matching
-    # note_id = data["note_id"]
-    # card_id = data["card_id"]
-    # if card_id:
-    #     note_info = invoke("notesInfo", notes=[note_id])
-    #     if note_info and isinstance(note_info, list):
-    #         fields = note_info[0].get("fields", {})
-    #         word_field = fields.get("Word", {})
-    #         printf("DEBUG3", word_field)
-    #         data["word"] = str(word_field.get("value", "")).strip().lower()
 
     return data
 
@@ -144,23 +146,13 @@ def show_answer():
 
 def print_card(card):
     print()
-    print("-" * 60)
-
-    #print("CARD ID :", card["card_id"])
-    #print("NOTE ID :", card["note_id"])
-
-    #print("-" * 60)
+    print("-" * 8)
 
     print("WORD:")
     print(card["question"])
 
-    #print("-" * 60)
-
     print("MEANING:")
     print(card["answer"])
-
-    #print("=" * 60)
-    #print()
 
 
 def _normalize_word_text(text):
@@ -211,7 +203,7 @@ def is_easy_by_word_input(user_input, card_question, card_answer="", card_word="
 def reviewer_loop():
     print()
     print("ANKI REVIEWER STARTED")
-    print("Open Anki reviewer first")
+    print("    Open Anki reviewer first")
 
     last_card_id = None
 
@@ -219,7 +211,7 @@ def reviewer_loop():
         try:
             card = get_learning_note()
             if card is None:
-                print("No reviewer card opened...")
+                print("    No reviewer card opened...")
                 time.sleep(2)
                 continue
 
@@ -232,6 +224,8 @@ def reviewer_loop():
 
             cmd = input("Select: ").strip()
 
+            # DEBUG
+            #with open("123.test", "w", encoding="utf-8") as f: f.write(str(card))
             if cmd == "1":
                 answer_again()
             elif cmd == "2":
@@ -245,7 +239,8 @@ def reviewer_loop():
             elif is_easy_by_word_input(cmd, card["question"], card["answer"], card.get("word", "")):
                 answer_easy()
             else:
-                print("NOT YET CORRECT")
+                print("NOT_YET_CORRECT")
+                printf ("    --> Word: ", card.get("word", ""))
                 continue
 
             time.sleep(0.3)

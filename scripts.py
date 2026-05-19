@@ -3880,25 +3880,23 @@ def separate_2_srt():
                     print(b)
         print(f"    --> [SUCCESS] Created: {full_name}")
 
-        # 2. Xuất file LONGEST (Khớp yêu cầu: Start từ 0, nối tiếp nhau)
+        # 2. Xuất file LONGEST
+        # Không dò timeline gốc nữa: start từ 0, mỗi word hiển thị theo cấu hình.
+        LONGEST_WORD_DURATION_SEC = 0.7
         longest_name = f"fin_aud_2{sp}_lest.srt"
-        current_offset = 0.0 # Bắt đầu chính xác từ 0.0s
+        current_offset = 0.0
         longest_content = []
         valid_idx = 1
 
         for st_key in sorted(set(stage_map.values())):
-            block = longest_blocks_data[sp][st_key]
-            if block:
-                ts_parts = block[1].split(" --> ")
-                duration = time_to_seconds(ts_parts[1]) - time_to_seconds(ts_parts[0])
-
+            longest_word = clean_caption_text(longest_word_text[sp][st_key])
+            if longest_word:
                 new_start = current_offset
-                new_end = new_start + duration
+                new_end = new_start + LONGEST_WORD_DURATION_SEC
 
                 new_timeline = f"{format_timestamp(new_start)} --> {format_timestamp(new_end)}"
-                longest_content.append(f"{valid_idx}\n{new_timeline}\n{block[2].strip()}")
+                longest_content.append(f"{valid_idx}\n{new_timeline}\n{longest_word}")
 
-                # Cập nhật offset cho từ tiếp theo: Bằng End từ trước (không có khoảng cách)
                 current_offset = new_end
                 valid_idx += 1
 

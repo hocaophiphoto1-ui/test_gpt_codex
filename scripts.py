@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/18, 03:17
+# @Last Modified time: 2026/05/20, 04:04
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -42,6 +42,7 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 # CAPCUT (https://www.capcut.com/ai-creator-home)
 # goa250enhancei9241@gmail.com 260508_1900  remove_260518_0310
 # goa260enhancei9241@gmail.com 260518_0315
+# goa270enhancei9241@gmail.com 260520_0320
 
 # https://serper.dev/
 # ho.caophi.photo1@gmail.com 260506_1900
@@ -3111,7 +3112,7 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
     # Export preview PNG có viền đỏ
     if s10mode == "test":
         try:
-            png_output = os.path.join(base_dir, "fin_aud_1pcap_lest.png")
+            png_output = os.path.join(base_dir, "fin_aud_1pcap_lest1.png")
             ffmpeg_preview_cmd = (
                 f'ffmpeg -y -ss 1 -i "{output_mov}" '
                 f'-filter_complex '
@@ -3126,7 +3127,7 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
 
             longest_start_time = _find_longest_line_start_time(srt_input)
             if longest_start_time:
-                png_output_longest = os.path.join(base_dir, "fin_aud_1pcap_lest1.png")
+                png_output_longest = os.path.join(base_dir, "fin_aud_1pcap_lest2.png")
                 longest_start_ffmpeg = longest_start_time.replace(",", ".")
                 ffmpeg_longest_cmd = (
                     f'ffmpeg -y -ss {longest_start_ffmpeg} -i "{output_mov}" '

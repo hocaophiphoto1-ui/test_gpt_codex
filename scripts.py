@@ -3814,6 +3814,7 @@ def separate_2_srt():
     script_yt_path = "./scripts.yt"
     master_srt_path = "./audio_ffmpegs/fin_aud_2ali.srt"
     output_dir = "./audio_ffmpegs"
+    DEBUG_PARSE_LIMIT = 20
 
     stage_map = {
         "HOOK": "1_HOOK", "INFO": "2_START", "START": "2_START",
@@ -3832,6 +3833,8 @@ def separate_2_srt():
     script_words = []
     dropped_words = []
     unknown_speaker_lines = []
+    parse_debug_rows = []
+    speaker_counter = {"man": 0, "woman": 0}
     longest_word_text = {
         "man": {v: "" for v in stage_map.values()},
         "woman": {v: "" for v in stage_map.values()}
@@ -3865,6 +3868,15 @@ def separate_2_srt():
             speaker = detect_speaker(parts[0])
             text_clean = re.sub(r'\(.*?\)', '', parts[1]).replace("[", "").replace("]", "").replace("...", " ")
 
+            if len(parse_debug_rows) < DEBUG_PARSE_LIMIT:
+                parse_debug_rows.append({
+                    "line_no": line_no,
+                    "stage": current_stage,
+                    "label": parts[0].strip(),
+                    "speaker": speaker,
+                    "text_preview": text_clean.strip()[:80]
+                })
+
             if not speaker:
                 unknown_speaker_lines.append((line_no, parts[0].strip(), l))
                 continue
@@ -3874,11 +3886,24 @@ def separate_2_srt():
                 norm_w = re.sub(r'[^a-z0-9]', '', w.lower())
                 if norm_w:
                     script_words.append({'norm': norm_w, 'speaker': speaker, 'stage': target_stage, 'orig': w, 'line_no': line_no})
+                    speaker_counter[speaker] += 1
                     # Đếm bao gồm cả dấu câu theo yêu cầu
                     if len(w) > len(longest_word_text[speaker][target_stage]):
                         longest_word_text[speaker][target_stage] = w
                 else:
                     dropped_words.append((line_no, speaker, w))
+
+    print("\n    [DEBUG] First parsed dialogue lines (up to 20):")
+    for idx, row in enumerate(parse_debug_rows, 1):
+        print(
+            f"        #{idx:02d} line={row['line_no']} stage={row['stage']} "
+            f"label='{row['label']}' -> speaker={row['speaker']} | text='{row['text_preview']}'"
+        )
+
+    print("    [DEBUG] Word distribution from scripts.yt:")
+    print(f"        man_words   : {speaker_counter['man']}")
+    print(f"        woman_words : {speaker_counter['woman']}")
+    print(f"        unknown_speaker_lines: {len(unknown_speaker_lines)}")
 
     # Fail-fast nếu speaker không nhận diện được hoặc bị rớt word sau normalize
     if unknown_speaker_lines:

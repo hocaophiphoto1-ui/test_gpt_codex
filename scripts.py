@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/20, 20:07
+# @Last Modified time: 2026/05/21, 04:34
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -5642,6 +5642,18 @@ if __name__ == "__main__":
             run_silent_step3()
             run_srt_step4()
         elif mode == "sub7":
+            run_srt_step5()
+            run_srt_step6()
+            run_srt_step7()
+            run_srt_step8()
+            run_srt_step8()
+            run_srt_step9()
+        elif mode == "sub8":
+            run_tts_step1()
+            run_ffmpeg_step2()
+            run_silent_step3()
+            run_srt_step4()
+            #
             run_srt_step5()
             run_srt_step6()
             run_srt_step7()

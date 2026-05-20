@@ -3911,7 +3911,9 @@ def separate_2_srt():
         srt_raw = f.read().strip()
         # DEBUG
         #with open("123.test", "w", encoding="utf-8") as f: f.write(str(srt_raw))
-    all_blocks = re.findall(r"(\d+)\n(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\n((?:.+\n?)+)", srt_raw)
+    all_blocks_raw = re.findall(r"(\d+)\n(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\n((?:.+\n?)+)", srt_raw)
+    # Bỏ block dummy/blank để tránh lệch 1-word-per-block
+    all_blocks = [b for b in all_blocks_raw if clean_srt_text(b[2])]
     # DEBUG
     #with open("345.test", "w", encoding="utf-8") as f: f.write(str(all_blocks))
     #printf("all_blocks[0]: ", all_blocks[0])

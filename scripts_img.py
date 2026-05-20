@@ -1438,7 +1438,37 @@ When selecting best image:
     printf("\nSTEP 12 DONE\n")
 
 
-def create_thumb_wtext(num=0, ):
+def create_thumb_wtext(num=6, _batch_mode=False):
+    # Tự động dò thumb_logo_x.jpg (x < 100) và tạo batch ảnh kế tiếp
+    if not _batch_mode:
+        pattern = re.compile(r"^thumb_logo_(\d+)\.jpg$")
+        existing_nums = []
+
+        for name in os.listdir("."):
+            m = pattern.match(name)
+            if not m:
+                continue
+            idx = int(m.group(1))
+            if idx < 100:
+                existing_nums.append(idx)
+
+        if existing_nums:
+            last_num = max(existing_nums)
+            seed_logo = f"./thumb_logo_{num}.jpg"
+
+            # Chỉ chạy batch khi có sẵn thumb_logo_{num}.jpg
+            if os.path.exists(seed_logo):
+                start_num = last_num + 1
+                end_num = min(start_num + 6 - 1, 99)
+
+                print(f"[AUTO] Found {seed_logo}.")
+                print(f"[AUTO] Existing max thumb_logo_x.jpg (x < 100): {last_num}")
+                print(f"[AUTO] Generating thumb_nologo/thumb_logo from {start_num} to {end_num}...")
+
+                for i in range(start_num, end_num + 1):
+                    create_thumb_wtext(num=i, _batch_mode=True)
+                return f"./thumb_nologo_{end_num}.jpg"
+
     # CONFIG
     MODEL_NAME  = "gemini-3.1-flash-image-preview"
     image_files = "./img1_HOOK.jpg"

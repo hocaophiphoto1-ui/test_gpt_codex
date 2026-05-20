@@ -3830,6 +3830,8 @@ def separate_2_srt():
         lines = f.readlines()
 
     script_words = []
+    dropped_words = []
+    unknown_speaker_lines = []
     longest_word_text = {
         "man": {v: "" for v in stage_map.values()},
         "woman": {v: "" for v in stage_map.values()}
@@ -3837,8 +3839,22 @@ def separate_2_srt():
     # DEBUG
     #printf("longest_word_text: ", longest_word_text)
 
+    def detect_speaker(label):
+        """
+        Detect speaker từ nhãn trước dấu ":" trong scripts.yt.
+        Hỗ trợ nhiều kiểu đặt tên để tránh lẫn word Nam/Nữ khi tách SRT.
+        """
+        u = label.upper()
+        if any(k in u for k in ["_MAN_", "MAN_", "_MAN", "NAM_"]):
+            return "man"
+        if any(k in u for k in ["_WOMAN_", "WOMAN_", "_WOMAN", "NU_", "NỮ_"]):
+            return "woman"
+        return None
+
     current_stage = None
+    line_no = 0
     for line in lines:
+        line_no += 1
         l = line.strip()
         if not l or any(l.startswith(x) for x in ["#", "scripts =", '"""']): continue
         if l.upper() in stage_map:
@@ -3846,18 +3862,42 @@ def separate_2_srt():
             continue
         if ":" in l and current_stage:
             parts = l.split(":", 1)
-            speaker = "man" if "_MAN_" in parts[0].upper() else "woman" if "_WOMAN_" in parts[0].upper() else None
+            speaker = detect_speaker(parts[0])
             text_clean = re.sub(r'\(.*?\)', '', parts[1]).replace("[", "").replace("]", "").replace("...", " ")
 
-            if speaker:
-                target_stage = stage_map[current_stage]
-                for w in text_clean.split():
-                    norm_w = re.sub(r'[^a-z0-9]', '', w.lower())
-                    if norm_w:
-                        script_words.append({'norm': norm_w, 'speaker': speaker, 'stage': target_stage, 'orig': w})
-                        # Đếm bao gồm cả dấu câu theo yêu cầu
-                        if len(w) > len(longest_word_text[speaker][target_stage]):
-                            longest_word_text[speaker][target_stage] = w
+            if not speaker:
+                unknown_speaker_lines.append((line_no, parts[0].strip(), l))
+                continue
+
+            target_stage = stage_map[current_stage]
+            for w in text_clean.split():
+                norm_w = re.sub(r'[^a-z0-9]', '', w.lower())
+                if norm_w:
+                    script_words.append({'norm': norm_w, 'speaker': speaker, 'stage': target_stage, 'orig': w, 'line_no': line_no})
+                    # Đếm bao gồm cả dấu câu theo yêu cầu
+                    if len(w) > len(longest_word_text[speaker][target_stage]):
+                        longest_word_text[speaker][target_stage] = w
+                else:
+                    dropped_words.append((line_no, speaker, w))
+
+    # Fail-fast nếu speaker không nhận diện được hoặc bị rớt word sau normalize
+    if unknown_speaker_lines:
+        print("\n    [ERROR] Có line không nhận diện được speaker trong scripts.yt:")
+        for ln, lb, raw in unknown_speaker_lines[:20]:
+            print(f"        - line {ln}: label='{lb}' | raw='{raw}'")
+        if len(unknown_speaker_lines) > 20:
+            print(f"        ... and {len(unknown_speaker_lines)-20} more lines")
+        print("    --> Dừng để tránh lệch map Nam/Nữ.")
+        return None
+
+    if dropped_words:
+        print("\n    [ERROR] Có word bị rớt sau normalize (norm_w=''):")
+        for ln, sp, w in dropped_words[:30]:
+            print(f"        - line {ln} [{sp}] word='{w}'")
+        if len(dropped_words) > 30:
+            print(f"        ... and {len(dropped_words)-30} more words")
+        print("    --> Dừng để tránh lệch số lượng word script vs SRT.")
+        return None
     # DEBUG
     #with open("123.test", "w", encoding="utf-8") as f: f.write(str(longest_word_text))
     #printf("longest_word_text: ", longest_word_text)
@@ -3887,6 +3927,25 @@ def separate_2_srt():
         "man": {v: [0, 0] for v in stage_map.values()},
         "woman": {v: [0, 0] for v in stage_map.values()}
     }
+
+    # Fail-fast nếu số lượng word lệch với số block SRT (1 word / block)
+    if len(script_words) != len(all_blocks):
+        print("\n    [ERROR] Mismatch số lượng word giữa script và fin_aud_2ali.srt")
+        print(f"        - script_words: {len(script_words)}")
+        print(f"        - srt_blocks  : {len(all_blocks)}")
+        print("    [ALIGNMENT AUDIT] 20 phần tử đầu để dò điểm lệch:")
+        max_audit = min(20, max(len(script_words), len(all_blocks)))
+        for i in range(max_audit):
+            sw = script_words[i] if i < len(script_words) else None
+            sb = all_blocks[i] if i < len(all_blocks) else None
+            sw_word = sw['orig'] if sw else '---'
+            sw_spk = sw['speaker'] if sw else '---'
+            sw_ln = sw['line_no'] if sw else '-'
+            srt_word = clean_srt_text(sb[2]) if sb else '---'
+            srt_time = sb[1] if sb else '---'
+            print(f"        idx={i+1:04d} | script='{sw_word}' ({sw_spk},L{sw_ln}) | srt='{srt_word}' | {srt_time}")
+        print("    --> Dừng để tránh lệch dây chuyền sang speaker sai.")
+        return None
 
     srt_ptr = 0
     for s_word in script_words:
@@ -4010,6 +4069,15 @@ def separate_2_srt():
     print(f"\nTotal processed: {srt_ptr} blocks")
     print("\n--- Separate 2 SRT Finished ---\n")
     return report_map
+
+def clean_srt_text(text):
+    if text is None:
+        return ""
+    text = str(text).replace("\r", " ").replace("\n", " ")
+    text = text.replace("[", "").replace("]", "")
+    text = re.sub(r"<.*?>", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 def convert_1920_1080():
     imgs = ["./img1_HOOK.png", "./img2_INFO.png", "./img3_MAIN.png", "./img4_BYE.png"]

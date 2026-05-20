@@ -2865,7 +2865,7 @@ def check_pupcaps_integrity():
 #===============================================================================██████
 def run_srt_step9():
     print(f"\n--- Step 9: Extracting Longest Highlight Section (Punctuation-Insensitive) ---")
-    fixed_segment_duration_sec = 1.0  # Có thể chỉnh nhanh tại đây (ví dụ: 0.8, 1.2, 2.0)
+    fixed_segment_duration_sec = 0.7  # Có thể chỉnh nhanh tại đây (ví dụ: 0.8, 1.2, 2.0)
 
     srt_path = os.path.join(silent_dir, "fin_aud_1pcap.srt")
     out_path = os.path.join(silent_dir, "fin_aud_1pcap_lest.srt")

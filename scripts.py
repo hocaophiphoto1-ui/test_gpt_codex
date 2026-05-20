@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/20, 04:04
+# @Last Modified time: 2026/05/20, 20:07
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -2956,10 +2956,18 @@ def run_srt_step9():
     report_sentence = parse_longest_sentence_from_report("bk_wlongest")
     report_target_idx = find_best_idx_for_sentence(report_sentence, blocks) if report_sentence else -1
 
+    #printf ("report_sentence: ", report_sentence)
+    #printf ("target_absolute_idx: ", target_absolute_idx)
+    #printf ("report_target_idx: ", report_target_idx)
+
     # 4. Xuất .srt: mỗi câu target sẽ trích 3 timeline liên tục như logic cũ
     all_target_idxs = [target_absolute_idx]
-    if report_target_idx != -1 and report_target_idx not in all_target_idxs:
+    #if report_target_idx != -1 and report_target_idx not in all_target_idxs:
+    if report_target_idx != -1 :
         all_target_idxs.append(report_target_idx)
+
+    # DEBUG
+    #with open("123.test", "w", encoding="utf-8") as f: f.write(str(all_target_idxs))
 
     final_output = []
     running_idx = 1
@@ -3110,21 +3118,55 @@ def run_pupcaps_step10(s10mode="full", fontsize=88, spacing=-5):
 
         return None
 
+    def _find_longest_line_start_time1(srt_path):
+        """Lấy mốc thời gian từ frame thứ 2 trong SRT (ưu tiên end-time, định dạng HH:MM:SS)."""
+        try:
+            with open(srt_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception:
+            return None
+
+        blocks = re.split(r"\n\s*\n", content.strip())
+        frame_index = 2  # luôn lấy mốc từ timerframe 2
+
+        for block in blocks:
+            lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+            if len(lines) < 2:
+                continue
+
+            if lines[0] != str(frame_index):
+                continue
+
+            timing_line = lines[1]
+            m = re.match(r"(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})", timing_line)
+            if not m:
+                continue
+
+            end_time = m.group(2)
+            return end_time.split(",")[0]
+
+        return None
+
     # Export preview PNG có viền đỏ
     if s10mode == "test":
         try:
-            png_output = os.path.join(base_dir, "fin_aud_1pcap_lest1.png")
-            ffmpeg_preview_cmd = (
-                f'ffmpeg -y -ss 1 -i "{output_mov}" '
-                f'-filter_complex '
-                f'"color=c=white:s=1920x1080[bg];'
-                f'[bg][0:v]overlay=0:0,'
-                f'drawbox=x=0:y=0:w=1920:h=1080:color=red@1.0:thickness=4" '
-                f'-frames:v 1 "{png_output}"'
-            )
-            print(f"\n        --> [INFO] Export preview PNG with red border...")
-            subprocess.run(ffmpeg_preview_cmd, shell=True, check=True)
-            print(f"    --> [SUCCESS] Generated preview: {png_output}")
+            longest_start_time1 = _find_longest_line_start_time1(srt_input)
+            if longest_start_time1:
+                png_output = os.path.join(base_dir, "fin_aud_1pcap_lest1.png")
+                longest_start_ffmpeg1 = longest_start_time1.replace(",", ".")
+                ffmpeg_preview_cmd = (
+                    f'ffmpeg -y -ss {longest_start_ffmpeg1} -i "{output_mov}" '
+                    f'-filter_complex '
+                    f'"color=c=white:s=1920x1080[bg];'
+                    f'[bg][0:v]overlay=0:0,'
+                    f'drawbox=x=0:y=0:w=1920:h=1080:color=red@1.0:thickness=4" '
+                    f'-frames:v 1 "{png_output}"'
+                )
+                print(f"        --> [INFO] Export longest-line preview at {longest_start_time1}...")
+                subprocess.run(ffmpeg_preview_cmd, shell=True, check=True)
+                print(f"    --> [SUCCESS] Generated preview: {png_output}")
+            else:
+                print(f"        --> [WARNING] Không tìm được timestamp câu dài nhất trong {srt_input}")
 
             longest_start_time = _find_longest_line_start_time(srt_input)
             if longest_start_time:
@@ -5459,6 +5501,7 @@ if __name__ == "__main__":
         elif mode == "debug_8" : separate_2_srt()
         elif mode == "debug_9" : transcript_video()
         elif mode == "debug_10": create_thumb()
+        elif mode == "debug_11": run_srt_step9()
 
         # SUB_FUNC
         elif mode == "sub0":

@@ -2865,6 +2865,7 @@ def check_pupcaps_integrity():
 #===============================================================================██████
 def run_srt_step9():
     print(f"\n--- Step 9: Extracting Longest Highlight Section (Punctuation-Insensitive) ---")
+    fixed_segment_duration_sec = 1.0  # Có thể chỉnh nhanh tại đây (ví dụ: 0.8, 1.2, 2.0)
 
     srt_path = os.path.join(silent_dir, "fin_aud_1pcap.srt")
     out_path = os.path.join(silent_dir, "fin_aud_1pcap_lest.srt")
@@ -2976,29 +2977,20 @@ def run_srt_step9():
         start_idx = max(0, target_idx - 1)
         end_idx = min(len(blocks) - 1, target_idx + 1)
         selected_blocks = blocks[start_idx : end_idx + 1]
-
-        orig_start_first = time_to_seconds(selected_blocks[0][1].split(" --> ")[0])
-        offset = orig_start_first - 0.5
-
-        local_entries = []
         for b in selected_blocks:
-            ts = b[1].split(" --> ")
-            s_sec = time_to_seconds(ts[0]) - offset
-            e_sec = time_to_seconds(ts[1]) - offset
-            local_entries.append((s_sec, e_sec, b[2].strip()))
-
-        snippet_shift = current_base - local_entries[0][0]
-        for s_sec, e_sec, text in local_entries:
-            final_output.append(f"{running_idx}\n{format_timestamp(s_sec + snippet_shift)} --> {format_timestamp(e_sec + snippet_shift)}\n{text}")
+            s_sec = current_base
+            e_sec = s_sec + fixed_segment_duration_sec
+            final_output.append(
+                f"{running_idx}\n{format_timestamp(s_sec)} --> {format_timestamp(e_sec)}\n{b[2].strip()}"
+            )
             running_idx += 1
-
-        # cộng thêm khoảng đệm 0.5s để 2 đoạn không đè nhau
-        current_base = local_entries[-1][1] + snippet_shift + 0.5
+            current_base = e_sec
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n\n".join(final_output) + "\n\n")
 
     print(f"    --> [SUCCESS] Longest snippet saved to: {out_path}")
+    print(f"    --> [CONFIG] Fixed segment duration: {fixed_segment_duration_sec}s")
     print(f"    --> Longest sentence found: \"{longest_sentence}\"")
     print(f"        --> Total characters: {total_chars} (including spaces & punctuation)")
     print(f"    --> Longest word found: \"{get_bracket_word(blocks[target_absolute_idx][2])}\" ({max_word_len} chars)\n")

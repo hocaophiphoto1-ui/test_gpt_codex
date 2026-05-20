@@ -1452,6 +1452,16 @@ def create_thumb_wtext(num=6, _batch_mode=False):
             if idx < 100:
                 existing_nums.append(idx)
 
+        if not existing_nums:
+            # Không có file nào thì tạo từ 1 -> num
+            start_num = 1
+            end_num = min(num, 99)
+            print(f"[AUTO] No thumb_logo_x.jpg found. Generating from {start_num} to {end_num}...")
+
+            for i in range(start_num, end_num + 1):
+                create_thumb_wtext(num=i, _batch_mode=True)
+            return f"./thumb_nologo_{end_num}.jpg"
+
         if existing_nums:
             last_num = max(existing_nums)
             seed_logo = f"./thumb_logo_{num}.jpg"

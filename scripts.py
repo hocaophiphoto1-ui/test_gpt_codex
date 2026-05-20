@@ -3845,13 +3845,15 @@ def separate_2_srt():
     def detect_speaker(label):
         """
         Detect speaker từ nhãn trước dấu ":" trong scripts.yt.
-        Hỗ trợ nhiều kiểu đặt tên để tránh lẫn word Nam/Nữ khi tách SRT.
+        Dùng token để tránh match nhầm MAN trong WOMAN.
         """
         u = label.upper()
-        if any(k in u for k in ["_MAN_", "MAN_", "_MAN", "NAM_"]):
-            return "man"
-        if any(k in u for k in ["_WOMAN_", "WOMAN_", "_WOMAN", "NU_", "NỮ_"]):
+        tokens = [t for t in re.split(r"[^A-ZÀ-Ỹ0-9]+", u) if t]
+
+        if any(t in {"WOMAN", "NU", "NỮ"} for t in tokens):
             return "woman"
+        if any(t in {"MAN", "NAM"} for t in tokens):
+            return "man"
         return None
 
     current_stage = None
@@ -5099,6 +5101,16 @@ def separate_srt():
         lines = f.readlines()
 
     script_words = []
+
+    def detect_speaker(label):
+        u = label.upper()
+        tokens = [t for t in re.split(r"[^A-ZÀ-Ỹ0-9]+", u) if t]
+        if any(t in {"WOMAN", "NU", "NỮ"} for t in tokens):
+            return "woman"
+        if any(t in {"MAN", "NAM"} for t in tokens):
+            return "man"
+        return None
+
     current_stage = None
     for line in lines:
         l = line.strip()
@@ -5108,7 +5120,7 @@ def separate_srt():
             continue
         if ":" in l and current_stage:
             parts = l.split(":", 1)
-            speaker = "man" if "_MAN_" in parts[0].upper() else "woman" if "_WOMAN_" in parts[0].upper() else None
+            speaker = detect_speaker(parts[0])
             # Xóa (0p8s), [], ...
             text_clean = re.sub(r'\(.*?\)', '', parts[1]).replace("[", "").replace("]", "").replace("...", " ")
             if speaker:

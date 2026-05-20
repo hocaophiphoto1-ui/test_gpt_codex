@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/19, 05:07
+# @Last Modified time: 2026/05/20, 05:10
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 
@@ -973,8 +973,11 @@ def check_searchs_var_v1(searches):
 
 #GAIS_API_KEY    = "AIzaSyBLnVkwWfquew3zFgrdBixu_Vd-GqUmeFI"     # test2
 #GAIS_API_KEY    = "AIzaSyCAPv_I4ILuKuo-yhKsnMFQpePrxYlg8NE"     # test4
-GAIS_API_KEY    = "AIzaSyDSU82YcfItQIdK70su60unRqSGu1YQc4c"     # test3
+#GAIS_API_KEY    = "AIzaSyDSU82YcfItQIdK70su60unRqSGu1YQc4c"     # test3 old
+GAIS_API_KEY    = "AIzaSyATdAb88Kln4j4ZYx9EY0UFPbkB9hdh7tc"     # test3 new
+
 MODEL_NAME      = "gemini-2.5-pro"                              # "gemini-3.1-pro-preview" # "gemini-2.5-flash"
+
 def choose_the_best_imgs():
     SEARCH_FILE     = "./searches.yt"
     IMG_DIR         = Path("./images/bk_imgs")
@@ -1672,9 +1675,11 @@ if __name__ == "__main__":
             check_searchs_var_v1(searches)
 
         elif mode == "test1":
+            choose_the_best_imgs()
             copy_all_sel_imgs()
         elif mode == "test2":
             create_thumb_wtext()
+
         elif mode == "17":
             create_thumb_wtext(num=1)
             create_thumb_wtext(num=2)

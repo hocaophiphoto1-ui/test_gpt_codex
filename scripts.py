@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   user
-# @Last Modified time: 2026/05/21, 10:27
+# @Last Modified time: 2026/05/21, 16:52
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -56,6 +56,15 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 #   pip freeze | Out-File -Encoding utf8 z_requirements
 #   python -m pip install --upgrade pip
 #   pip install -r z_requirements
+
+#   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY","API_KEY_HERE","User")
+#   echo $env:GEMINI_API_KEY
+#   
+#   Remove-Item Env:GEMINI_API_KEY
+#   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY", $null, "User")
+#   
+#   import os
+#   print(os.getenv("GEMINI_API_KEY"))
 #===============================================================================
 
 def printf(*args):

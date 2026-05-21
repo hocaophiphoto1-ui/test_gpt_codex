@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
-# @Last Modified by:   CPH
-# @Last Modified time: 2026/05/21, 07:03
+# @Last Modified by:   user
+# @Last Modified time: 2026/05/21, 17:02
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 
@@ -28,6 +28,24 @@ from google.genai import types
 import subprocess
 
 from scripts import get_scripts, get_searches
+
+
+MODEL_NAME      = "gemini-2.5-pro"                          # "gemini-3.1-pro-preview" # "gemini-2.5-flash"
+print(os.getenv("GEMINI_API_KEY"))
+
+
+def check_genai():
+    try:
+        client = genai.Client()
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents="hello"
+        )
+        print("SUCCESS")
+        print(response.text)
+    except Exception as e:
+        print("ERROR:")
+        print(e)
 
 
 def get_prompt_more(path="scripts.eze"):
@@ -972,13 +990,6 @@ def check_searchs_var_v1(searches):
         print("\n[ALL PASSED]")
 
 
-#GAIS_API_KEY    = "AIzaSyBLnVkwWfquew3zFgrdBixu_Vd-GqUmeFI"     # test2
-#GAIS_API_KEY    = "AIzaSyCAPv_I4ILuKuo-yhKsnMFQpePrxYlg8NE"     # test4
-#GAIS_API_KEY    = "AIzaSyATdAb88Kln4j4ZYx9EY0UFPbkB9hdh7tc"     # test3 old
-GAIS_API_KEY    = "AIzaSyA_tIMQeJ4fVeA98df4NrN6MmP2WYXQ4s0"     # test3 new
-
-MODEL_NAME      = "gemini-2.5-pro"                              # "gemini-3.1-pro-preview" # "gemini-2.5-flash"
-
 def choose_the_best_imgs():
     SEARCH_FILE     = "./searches.yt"
     IMG_DIR         = Path("./images/bk_imgs")
@@ -989,7 +1000,7 @@ def choose_the_best_imgs():
     BEST_DIR.mkdir(exist_ok=True)
 
     # GEMINI CLIENT
-    client = genai.Client(api_key=GAIS_API_KEY)
+    client = genai.Client()
 
     # ======================================================
     # TEST CONNECTION
@@ -1535,7 +1546,7 @@ TEXT LAYOUT:
     prompt = prompt + prompt_more
 
     # GEMINI CLIENT
-    client = genai.Client( api_key=GAIS_API_KEY )
+    client = genai.Client()
 
     # GENERATE
     response = client.models.generate_content(
@@ -1635,7 +1646,7 @@ Write a summary of the main content of the video in 5 - 10 sentences.
 """
 
     # GEMINI CLIENT
-    client = genai.Client( api_key=GAIS_API_KEY )
+    client = genai.Client()
 
     # GENERATE
     response = client.models.generate_content(
@@ -1725,3 +1736,6 @@ if __name__ == "__main__":
         elif mode == "18":
             create_description()
             rename_all_final_file()
+
+        elif mode == "check_genai":
+            check_genai()

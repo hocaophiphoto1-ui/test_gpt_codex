@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/20, 19:41
+# @Last Modified time: 2026/05/21, 07:03
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 
@@ -43,7 +43,8 @@ def get_prompt_more(path="scripts.eze"):
         print(f"    ERROR when reading file {path}: {e}")
         return ""
 
-    match = re.search(r'prompt_more\s*=\s*"""(.*?)"""', content, re.DOTALL)
+    #match = re.search(r'prompt_more\s*=\s*"""(.*?)"""', content, re.DOTALL)
+    match = re.search( r'^[ \t]*prompt_more\s*=\s*"""(.*?)"""', content, re.DOTALL | re.MULTILINE )
     if match:
         return match.group(1)
 

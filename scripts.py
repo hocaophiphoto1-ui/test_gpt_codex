@@ -2051,12 +2051,12 @@ def run_srt_step6(nword=6):
         # Tức là chỉ đoạn cuối của *toàn bộ block ban đầu* nhận marker.
 
         # Thay đổi logic gán marker để chỉ đoạn cuối cùng của CẢ KHỐI được gắn marker.
-        for i, seg in enumerate(segments):
+        merged_seg_count = len(final_segments_with_vda)
+        for i, (seg, s_t, e_t) in enumerate(final_segments_with_vda):
             seg_text = " ".join(seg)
-            if i == num_seg - 1: # Chỉ gắn marker cho đoạn cuối của TOÀN BỘ block gốc
+            if i == merged_seg_count - 1: # Chỉ gắn marker cho đoạn cuối của TOÀN BỘ block gốc
                 seg_text += marker
 
-            s_t, e_t = time_points[i], time_points[i+1]
             new_blocks.append(f"{current_idx}\n{format_timestamp(s_t)} --> {format_timestamp(e_t)}\n{seg_text}")
             print(f"    [DEBUG - MAIN LOOP]     -> Added new block {current_idx}: {format_timestamp(s_t)} --> {format_timestamp(e_t)} | {seg_text[:50]}{'...' if len(seg_text) > 50 else ''}")
             current_idx += 1

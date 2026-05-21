@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
-# @Last Modified by:   CPH
-# @Last Modified time: 2026/05/21, 04:34
+# @Last Modified by:   user
+# @Last Modified time: 2026/05/21, 09:04
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -44,6 +44,7 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 # goa250enhancei9241@gmail.com 260508_1900  remove_260518_0310
 # goa260enhancei9241@gmail.com 260518_0315
 # goa270enhancei9241@gmail.com 260520_0320
+# goa051enhancei0241@gmail.com 260521_0648
 
 # https://serper.dev/
 # ho.caophi.photo1@gmail.com 260506_1900
@@ -2865,7 +2866,7 @@ def check_pupcaps_integrity():
 #===============================================================================██████
 def run_srt_step9():
     print(f"\n--- Step 9: Extracting Longest Highlight Section (Punctuation-Insensitive) ---")
-    fixed_segment_duration_sec = 0.7  # Có thể chỉnh nhanh tại đây (ví dụ: 0.8, 1.2, 2.0)
+    fixed_segment_duration_sec = 0.1  # Có thể chỉnh nhanh tại đây (ví dụ: 0.8, 1.2, 2.0)
 
     srt_path = os.path.join(silent_dir, "fin_aud_1pcap.srt")
     out_path = os.path.join(silent_dir, "fin_aud_1pcap_lest.srt")

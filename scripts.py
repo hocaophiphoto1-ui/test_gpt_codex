@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   user
-# @Last Modified time: 2026/05/21, 09:04
+# @Last Modified time: 2026/05/21, 10:27
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -1707,7 +1707,7 @@ def run_srt_step5():
 #===============================================================================██████
 def run_srt_step6(nword=6):
     nword = int(nword)
-    short_segment_char_threshold = 50
+    short_segment_char_threshold = 40
     print(f"\n--- Step 6: Advanced SRT Splitting (VDA + Comma + Proper Noun Protection) ---")
     print(f"    [CONFIG] nword set to: {nword}")
     print(f"    [CONFIG] short_segment_char_threshold set to: {short_segment_char_threshold}")
@@ -3979,6 +3979,7 @@ def separate_2_srt():
         print(f"        - srt_blocks  : {len(all_blocks)}")
         print("    [ALIGNMENT AUDIT] 20 phần tử đầu để dò điểm lệch:")
         max_audit = min(20, max(len(script_words), len(all_blocks)))
+        #max_audit = 585
         for i in range(max_audit):
             sw = script_words[i] if i < len(script_words) else None
             sb = all_blocks[i] if i < len(all_blocks) else None

@@ -1707,8 +1707,10 @@ def run_srt_step5():
 #===============================================================================██████
 def run_srt_step6(nword=6):
     nword = int(nword)
+    short_segment_char_threshold = 50
     print(f"\n--- Step 6: Advanced SRT Splitting (VDA + Comma + Proper Noun Protection) ---")
     print(f"    [CONFIG] nword set to: {nword}")
+    print(f"    [CONFIG] short_segment_char_threshold set to: {short_segment_char_threshold}")
 
     silent_dir = Path("./audio_ffmpegs")
     if not silent_dir.exists():
@@ -1831,10 +1833,30 @@ def run_srt_step6(nword=6):
         L = len(words)
         print(f"\n    [DEBUG - get_split_segments] Processing original block words (len={L}): '{' '.join(words[:15])}{'...' if L > 15 else ''}'")
 
-        # 1. Nếu câu có số lượng word <= nword thì giữ nguyên câu
+        # 1. Nếu câu có số lượng word <= nword thì xét theo số ký tự:
+        #    - total_char < threshold: giữ nguyên
+        #    - total_char >= threshold: chia làm 2 đoạn (mặc định 3/3 khi nword=6)
         if L <= nword:
-            print(f"    [DEBUG - get_split_segments]   -> Length ({L}) <= nword ({nword}), returning as single segment.")
-            return [words]
+            total_char = len(" ".join(words))
+            if total_char < short_segment_char_threshold:
+                print(
+                    f"    [DEBUG - get_split_segments]   -> Length ({L}) <= nword ({nword}) and "
+                    f"total_char ({total_char}) < threshold ({short_segment_char_threshold}), returning as single segment."
+                )
+                return [words]
+
+            if L < 2:
+                print(
+                    f"    [DEBUG - get_split_segments]   -> Length ({L}) < 2, cannot split safely. Returning as single segment."
+                )
+                return [words]
+
+            split_point = max(1, L // 2)
+            print(
+                f"    [DEBUG - get_split_segments]   -> Length ({L}) <= nword ({nword}) but "
+                f"total_char ({total_char}) >= threshold ({short_segment_char_threshold}), splitting into two segments at index {split_point}."
+            )
+            return [words[:split_point], words[split_point:]]
 
         comma_indices = [i for i, w in enumerate(words) if "," in w and i < L - 1]
         print(f"    [DEBUG - get_split_segments]   -> Comma indices: {comma_indices}")

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
-# @Last Modified by:   user
-# @Last Modified time: 2026/05/21, 16:52
+# @Last Modified by:   CPH
+# @Last Modified time: 2026/05/23, 06:09
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -31,9 +31,8 @@ import threading
 
 import warnings
 
-print(sys.executable)
-
 #===============================================================================
+DEBUG = False
 QUALITY=0
 
 # INITIALIZE ELEVENLABS CLIENT
@@ -41,10 +40,10 @@ QUALITY=0
 client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40") # vitaly128@jualakunfb.co pass: Muabantool.com@123
 
 # CAPCUT (https://www.capcut.com/ai-creator-home)
-# goa250enhancei9241@gmail.com 260508_1900  remove_260518_0310
+# goa250enhancei9241@gmail.com 260508_1900
 # goa260enhancei9241@gmail.com 260518_0315
 # goa270enhancei9241@gmail.com 260520_0320
-# goa051enhancei0241@gmail.com 260521_0648
+# goa051enhancei0241@gmail.com 260522_0500 7-day + first 45k/m
 
 # https://serper.dev/
 # ho.caophi.photo1@gmail.com 260506_1900
@@ -57,6 +56,7 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 #   python -m pip install --upgrade pip
 #   pip install -r z_requirements
 
+#   ### API USE ENV VARIABLE
 #   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY","API_KEY_HERE","User")
 #   echo $env:GEMINI_API_KEY
 #   
@@ -66,6 +66,13 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 #   import os
 #   print(os.getenv("GEMINI_API_KEY"))
 #===============================================================================
+
+if DEBUG:
+    print(sys.executable)
+
+def fin_title():
+    from scripts_img import get_title
+    fin_title = get_title()
 
 def printf(*args):
     print("".join(map(str, args)))
@@ -95,43 +102,6 @@ def detect_gpu():
     else:
         return 0, 0
 
-GPU, AMD = detect_gpu()
-printf("GPU: ", GPU,"; ", "AMD: ", AMD)
-
-if QUALITY==1:
-    if GPU == 1 and AMD == 1:
-        # HWGPU = "-c:v h264_amf -quality quality"+" "
-        HWGPU = (
-            "-c:v h264_amf "
-            "-quality quality "
-            "-rc cqp "
-            "-qp_i 26 "
-            "-qp_p 28 "
-            "-qp_b 30 "
-        )
-    elif GPU == 1:
-        HWGPU = "-c:v h264_qsv -preset fast"+" "
-    else:
-        HWGPU = "-c:v libx264 -preset medium -crf 18"+" "
-else:
-    if GPU == 1 and AMD == 1:
-        # HWGPU = "-c:v h264_amf -quality speed -usage transcoding -rc cqp -qp_i 24 -qp_p 26 -qp_b 28"+" "
-        HWGPU = (
-            "-c:v hevc_amf "
-            "-quality speed "
-            "-rc cqp "
-            "-qp_i 28 "
-            "-qp_p 30 "
-        )
-    elif GPU == 1:
-        HWGPU = "-c:v h264_qsv -preset veryfast"+" "
-    else:
-        HWGPU = "-c:v libx264 -preset medium -crf 18"+" "
-
-# Phân tách chuỗi HWGPU thành danh sách các đối số
-# shlex.split sẽ xử lý đúng các chuỗi có dấu nháy nếu có (ví dụ: "some_value with space")
-hwgpu_args = shlex.split(HWGPU)
-
 # 1. Tắt cảnh báo từ module warnings của Python (cho pkg_resources)
 warnings.filterwarnings("ignore")
 os.environ["PYTHONWARNINGS"] = "ignore"
@@ -154,22 +124,22 @@ class SuppressStd:
         sys.stderr = self._original_stderr
 
 # Thực hiện import các thư viện gây ồn ào trong block này
-# with SuppressStd():
-#     try:
-#         import stable_whisper
-#         import whisperx
-#         import torch
-#         import torchvision
-#         import torchaudio
-#         import pytorch_lightning
-#     except ImportError:
-#         pass
-import stable_whisper
-import whisperx
-import torch
-import torchvision
-import torchaudio
-import pytorch_lightning
+with SuppressStd():
+    try:
+        import stable_whisper
+        import whisperx
+        import torch
+        import torchvision
+        import torchaudio
+        import pytorch_lightning
+    except ImportError:
+        pass
+#import stable_whisper
+#import whisperx
+#import torch
+#import torchvision
+#import torchaudio
+#import pytorch_lightning
 
 #===============================================================================
 # 1. LOGIC ĐỌC BIẾN scripts TỪ FILE .eze (CHẤP NHẬN FILE CÓ TEXT LẠ)
@@ -5505,6 +5475,42 @@ if __name__ == "__main__":
     DEBUG = 0
     GENDER = ""
 
+    GPU, AMD = detect_gpu()
+    printf("GPU: ", GPU,"; ", "AMD: ", AMD)
+    if QUALITY==1:
+        if GPU == 1 and AMD == 1:
+            # HWGPU = "-c:v h264_amf -quality quality"+" "
+            HWGPU = (
+                "-c:v h264_amf "
+                "-quality quality "
+                "-rc cqp "
+                "-qp_i 26 "
+                "-qp_p 28 "
+                "-qp_b 30 "
+            )
+        elif GPU == 1:
+            HWGPU = "-c:v h264_qsv -preset fast"+" "
+        else:
+            HWGPU = "-c:v libx264 -preset medium -crf 18"+" "
+    else:
+        if GPU == 1 and AMD == 1:
+            # HWGPU = "-c:v h264_amf -quality speed -usage transcoding -rc cqp -qp_i 24 -qp_p 26 -qp_b 28"+" "
+            HWGPU = (
+                "-c:v hevc_amf "
+                "-quality speed "
+                "-rc cqp "
+                "-qp_i 28 "
+                "-qp_p 30 "
+            )
+        elif GPU == 1:
+            HWGPU = "-c:v h264_qsv -preset veryfast"+" "
+        else:
+            HWGPU = "-c:v libx264 -preset medium -crf 18"+" "
+
+    # Phân tách chuỗi HWGPU thành danh sách các đối số
+    # shlex.split sẽ xử lý đúng các chuỗi có dấu nháy nếu có (ví dụ: "some_value with space")
+    hwgpu_args = shlex.split(HWGPU)
+
     # Giá trị mặc định
     params = {
         "mode": "full",
@@ -5621,6 +5627,7 @@ if __name__ == "__main__":
         # UTINITY
         elif mode == "long": run_analyze_long()
         elif mode == "help": print_help()
+        elif mode == "title": fin_title()
 
         # TEST_ONLY
         elif mode == "debug_1" : remove_img_jpg()

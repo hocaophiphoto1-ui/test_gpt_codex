@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/21, 04:31
+# @Last Modified time: 2026/05/22, 03:47
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 import tkinter as tk
@@ -71,14 +71,14 @@ MAIN_COMMANDS = [ # Đổi tên thành MAIN_COMMANDS
     ("python scripts.py 9",                     "step9 : Create _1pcap_lest.srt"),
     ("python scripts.py 10 s10mode=test",       "step10: Create fin_aud_1pcap_lest.MOV, [DEFAULT] fontsize=88, spacing=-5"),
     ("python scripts.py 10 s10mode=full",       "step10: Create fin_aud_1pcap.MOV fin_aud_1pcap.MP4, [DEFAULT] fontsize=88, spacing=-5"),
-    ("python scripts.py 11 s11mode=test",       "step11: Create _2man/woman_lest.srt _2man/woman_lest.MOV _2man/woman_lest.MP4, [DEFAULT] m_size=140 w_size=140 m_space=-5 w_space=-5 m_align='RIGHT' w_align='LEFT' m_anchor=960 w_anchor=960"),
-    ("python scripts.py 11 s11mode=full",       "step11: Create _2man/woman.srt _2man/woman.MOV _2man/woman.MP4, [DEFAULT] m_size=140 w_size=140 m_space=-5 w_space=-5 m_align='RIGHT' w_align='LEFT' m_anchor=960 w_anchor=960"),
+    ("python scripts.py 11 s11mode=test",       "step11: Create _2man/woman_lest.srt _2man/woman_lest.MOV _2man/woman_lest.MP4, [DEFAULT] m_size=140 w_size=140 m_space=-5 w_space=-5 m_align='RIGHT' w_align='LEFT' m_anchor=960 w_anchor=960 GENDER=\"\""),
+    ("python scripts.py 11 s11mode=full",       "step11: Create _2man/woman.srt _2man/woman.MOV _2man/woman.MP4, [DEFAULT] m_size=140 w_size=140 m_space=-5 w_space=-5 m_align='RIGHT' w_align='LEFT' m_anchor=960 w_anchor=960 GENDER=\"\""),
     ("python scripts_img.py 12",                "step12: Collect illustration image, create IMAGES dir, USE: python scripts_img.py 12"),
     ("python scripts_img.py 13",                "step13: Create time START/END of images (bk_img_time)"),
     ("python scripts.py 14",                    "step14: Detect 4 silent points (bk_4_silent)"),
     ("python scripts.py 15",                    "step15: Scale images to 960*540"),
     ("python scripts.py 16",                    "step16: CREATE FINAL_FULL VIDEO"),
-    ("python scripts_img.py 17",                "step17: CREATE THUMBNAIL"),
+    ("python scripts_img.py 17",                "step17: CREATE THUMBNAIL, USE: python scripts_img.py 17"),
 ]
 NUM_MAIN = len(MAIN_COMMANDS) # Số lượng lệnh chính
 
@@ -96,8 +96,8 @@ SUB_COMMANDS = [
     ("python scripts.py sub9",                  "NO_SUBFUNC: PLEASE_DECLARATION", ""),
     ("python scripts.py sub10 s10mode=test",    "ss_10: Create fin_aud_1pcap_lest.MOV", "fontsize=88 spacing=-5"),
     ("python scripts.py sub10 s10mode=full",    "ss_10: Create fin_aud_1pcap.MOV fin_aud_1pcap.MP4", "fontsize=88 spacing=-5"),
-    ("python scripts.py sub11 s11mode=test",    "ss_11: Create _2man/woman_lest.srt _2man/woman_lest.MOV _2man/woman_lest.MP4", "m_size=140 w_size=140 m_space=-5 w_space=-5 m_align=\"RIGHT\" w_align=\"LEFT\" m_anchor=960 w_anchor=960"),
-    ("python scripts.py sub11 s11mode=full",    "ss_11: Create _2man/woman.srt _2man/woman.MOV _2man/woman.MP4", "m_size=140 w_size=140 m_space=-5 w_space=-5 m_align=\"RIGHT\" w_align=\"LEFT\" m_anchor=960 w_anchor=960"),
+    ("python scripts.py sub11 s11mode=test",    "ss_11: Create _2man/woman_lest.srt _2man/woman_lest.MOV _2man/woman_lest.MP4", "m_size=140 w_size=140 m_space=-5 w_space=-5 m_align=\"RIGHT\" w_align=\"LEFT\" m_anchor=960 w_anchor=960 GENDER=\"\""),
+    ("python scripts.py sub11 s11mode=full",    "ss_11: Create _2man/woman.srt _2man/woman.MOV _2man/woman.MP4", "m_size=140 w_size=140 m_space=-5 w_space=-5 m_align=\"RIGHT\" w_align=\"LEFT\" m_anchor=960 w_anchor=960 GENDER=\"\""),
     ("python scripts.py sub12",                 "NO_SUBFUNC: PLEASE_DECLARATION", ""),
     ("python scripts.py sub13",                 "COMBO: step 13/14/15/16 -> FINAL_FULL VIDEO", ""),
     ("python scripts.py sub14",                 "NO_SUBFUNC: PLEASE_DECLARATION", ""),
@@ -400,7 +400,7 @@ main_row_offset = 0
 
 # ===== ROW 0: FUNC (MAIN) =====
 #for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19]:
-for i in [0, 4, 19]:
+for i in [0, 4]:
     btn['main'][i] = tk.Button(main_frame, text=f"F{i}", width=BTN_W, command=lambda i=i: run_func('main', i))
     btn['main'][i].grid(row=main_row_offset + 0, column=i, padx=1, pady=1)
 
@@ -448,9 +448,9 @@ tk.Button(main_frame, text=f"images", width=BTN_W, command=lambda i=i: show_info
 # btn['main'][i] = tk.Button(main_frame, text=f"F16", width=BTN_W, command=lambda i=i: run_func('main', i))
 # btn['main'][i].grid(row=main_row_offset + 0, column=i, padx=1, pady=1)
 
-i = 19
-btn['main'][i] = tk.Button(main_frame, text=f"F17", width=BTN_W, command=lambda i=i: run_func('main', i))
-btn['main'][i].grid(row=main_row_offset + 0, column=i, padx=1, pady=1)
+# i = 19
+# btn['main'][i] = tk.Button(main_frame, text=f"F17", width=BTN_W, command=lambda i=i: run_func('main', i))
+# btn['main'][i].grid(row=main_row_offset + 0, column=i, padx=1, pady=1)
 i=19
 tk.Button(main_frame, text=f"thumb", width=BTN_W, command=lambda i=i: show_info('main', i)).grid(row=main_row_offset + 1, column=i)
 
@@ -464,7 +464,7 @@ tk.Button(main_frame, text=f"thumb", width=BTN_W, command=lambda i=i: show_info(
 # ===== ADD: ROW 2 EN (MAIN) =====
 #for i in range(NUM_MAIN):
 #for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19]:
-for i in [0, 4, 19]:
+for i in [0, 4]:
     en_btn['main'][i] = tk.Button(main_frame, text="EN", width=BTN_W,
                            command=lambda i=i: toggle_en('main', i))
     en_btn['main'][i].grid(row=main_row_offset + 2, column=i)

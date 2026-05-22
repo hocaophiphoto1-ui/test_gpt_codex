@@ -73,6 +73,7 @@ if DEBUG:
 def fin_title():
     from scripts_img import get_title
     fin_title = get_title()
+    return fin_title
 
 def printf(*args):
     print("".join(map(str, args)))
@@ -4923,6 +4924,7 @@ def transcript_video():
 # SUB_FUNCTION
 def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images=1,
     bk_file=0, fin_file=0, img_file=0 ):
+    fin_title_name = fin_title()
     audio_elabs   = int(audio_elabs)
     audio_ffmpeg  = int(audio_ffmpeg)
     audio_ffmpegs = int(audio_ffmpegs)
@@ -4960,6 +4962,19 @@ def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images
             print(f"    [WARNING] Source not found : {src_dir}")
     except Exception as e:
         print(f"    [ERROR] Backup failed : {e}")
+
+    # REMOVE FILES MATCHING fin_title IN ./
+    if fin_title_name:
+        for root, _, files in os.walk("./"):
+            for file_name in files:
+                file_stem, _ = os.path.splitext(file_name)
+                if file_name == fin_title_name or file_stem == fin_title_name:
+                    file_path = os.path.join(root, file_name)
+                    try:
+                        os.remove(file_path)
+                        print(f"    [REMOVE TITLE FILE] {file_path}")
+                    except Exception as e:
+                        print(f"    [ERROR REMOVE TITLE FILE] {file_path} -> {e}")
 
     # REMOVE DIR
     dirs_to_remove = []

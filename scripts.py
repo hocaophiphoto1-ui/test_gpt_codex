@@ -2,7 +2,7 @@
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
 # @Last Modified by:   CPH
-# @Last Modified time: 2026/05/23, 06:09
+# @Last Modified time: 2026/05/29, 06:32
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 from elevenlabs.client import ElevenLabs
@@ -43,10 +43,11 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 # goa250enhancei9241@gmail.com 260508_1900
 # goa260enhancei9241@gmail.com 260518_0315
 # goa270enhancei9241@gmail.com 260520_0320
-# goa051enhancei0241@gmail.com 260522_0500 7-day + first 45k/m
+# goa051enhancei0241@gmail.com 260522_0500 7-day + first 45k/m Renew on 2026/06/29
 
 # https://serper.dev/
 # ho.caophi.photo1@gmail.com 260506_1900
+# Temp_27_serper.dev_c32d6d164e061c7a6b5cd7f162e33c23c9eb7163 260526_0322
 
 #   git checkout main; git pull origin main
 #   git merge dev; git push origin main
@@ -59,10 +60,10 @@ client = ElevenLabs(api_key="sk_8758751e8f4c3a384f8a9395bef9d1bcb71f2b6068559b40
 #   ### API USE ENV VARIABLE
 #   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY","API_KEY_HERE","User")
 #   echo $env:GEMINI_API_KEY
-#   
+#
 #   Remove-Item Env:GEMINI_API_KEY
 #   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY", $null, "User")
-#   
+#
 #   import os
 #   print(os.getenv("GEMINI_API_KEY"))
 #===============================================================================
@@ -189,9 +190,32 @@ def get_searches():
         print(f"    ERROR when reading file {file_path}: {e}")
         return ""
 
+def get_help():
+    searches_files = glob.glob("README.c")
+    if not searches_files:
+        print("    ERROR: The file {searches_files} was not found in the directory.")
+        return ""
+
+    file_path = searches_files[0]
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            # Tìm nội dung nằm giữa help_text = """ và #end_help
+            # Sử dụng re.DOTALL để khớp cả xuống dòng
+            match = re.search(r'help_text\s*=\s*"""(.*?)#end_help', content, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+            else:
+                print(f"    ERROR: Search structure = \"\"\"...#end_help not found in {file_path}")
+                return ""
+    except Exception as e:
+        print(f"    ERROR when reading file {file_path}: {e}")
+        return ""
+
 # Nạp nội dung kịch bản
-scripts  = get_scripts()
-searches = get_searches()
+scripts     = get_scripts()
+searches    = get_searches()
+help_text   = get_help()
 
 #===============================================================================
 # mapping voice
@@ -4923,7 +4947,7 @@ def transcript_video():
 #=======================================================================================================================
 # SUB_FUNCTION
 def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images=1,
-    bk_file=0, fin_file=0, img_file=0 ):
+    bk_file=0, fin_file=0, img_file=0, dir="0000" ):
     fin_title_name = fin_title()
     audio_elabs   = int(audio_elabs)
     audio_ffmpeg  = int(audio_ffmpeg)
@@ -4947,7 +4971,7 @@ def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images
     backup_base = r"D:\Users\CPH\Desktop\bk"
     dest_dir = os.path.join(
         backup_base,
-        f"0000_ezeng_{date_str}"
+        f"{dir}_ezeng_{date_str}"
     )
 
     try:
@@ -4984,15 +5008,20 @@ def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images
     if audio_ffmpegs:   dirs_to_remove.append("audio_ffmpegs")
     if images:          dirs_to_remove.append("images")
 
-    for d in dirs_to_remove:
-        try:
-            if os.path.isdir(d):
-                shutil.rmtree(d)
-                print(f"    [REMOVE DIR] {d}")
-            else:
-                print(f"    [SKIP DIR] {d}")
-        except Exception as e:
-            print(f"    [ERROR REMOVE DIR] {d} -> {e}")
+    # WILDCARD DIRS
+    dirs_to_remove.append("tmp*")
+    dirs_to_remove.append("temp*")
+
+    for pattern in dirs_to_remove:
+        for d in glob.glob(pattern):
+            try:
+                if os.path.isdir(d):
+                    shutil.rmtree(d)
+                    print(f"    [REMOVE DIR] {d}")
+                else:
+                    print(f"    [SKIP DIR] {d}")
+            except Exception as e:
+                print(f"    [ERROR REMOVE DIR] {d} -> {e}")
 
     # REMOVE bk_*
     if bk_file:
@@ -5014,9 +5043,16 @@ def sub_s0_move_old_data( audio_elabs=0, audio_ffmpeg=0, audio_ffmpegs=0, images
             except Exception as e:
                 print(f"    [ERROR REMOVE FILE] {f} -> {e}")
 
-    # REMOVE img1* img2* img3* img4*
+    # REMOVE IMAGE FILES
     if img_file:
-        patterns = [ "img1*", "img2*", "img3*", "img4*" ]
+        patterns = [
+            "img1_*",
+            "img2_*",
+            "img3_*",
+            "img4_*",
+            "thumb_logo_*",
+            "thumb_nologo_*"
+        ]
         for pattern in patterns:
             for f in glob.glob(pattern):
                 try:
@@ -5397,88 +5433,7 @@ of Hormuz
     print(f"\n[DONE] {IMG_OUT}\n")
 
 
-
 def print_help():
-    help_text = """
-# PYTHON_EzEng
-    # step0: ---------------------------------------------> create SCRIPTS.YT, SEARCHES.YT, CHECK not ENG
-        python scripts.py 0
-            run_tts_step0
-    # step1: ----------------------------------------------> TTS use elevenlabs, create AUDIO_ELABS dir
-        python scripts.py 1         -> run_tts_step1 + Random Man Woman + Start_from_1
-        python scripts.py 1 1 2 3   -> run_tts_step1 + Man1, Woman2 + Start_from_3
-        python scripts.py 1 1 2 o3  -> run_tts_step1 + Man1, Woman2 + Only_3
-    # step2: ---------------------------------------------> Add filter to all audio, create AUDIO_FFMPEG dir
-        python scripts.py 2
-            run_ffmpeg_step2
-    # step3: ---------------------------------------------> Merge audio, insert SILENT, create AUDIO_FFMPEGS dir -final, HOOK + INFO + MAIN + BYE-
-        python scripts.py 3 0.80 2 5
-            run_silent_step3 + SPEED + GAP_NOR + GAP_BYE
-    # step4: ---------------------------------------------> Create bk_database.whis, fin_aud_0.srt, fin_aud_0.txt
-        python scripts.py 4
-            run_srt_step4
-*** *** *** *** RUN S_F4 to Remove bk_database.whis if need
-    # step5: ---------------------------------------------> Create fin_aud_0_cor.srt, fin_aud_0_cor.txt + CHECK_WORDS
-        python scripts.py 5
-            run_srt_step5
-    # step6: ---------------------------------------------> Create bk_wlongest, _1.srt, _1.txt + CHECK _0_cor.srt AND _1.srt
-        python scripts.py 6
-            run_srt_step6
-    # step7: ---------------------------------------------> Create fin_aud_2.seg, fin_aud_2ali.seg, fin_aud_2ali.srt
-        python scripts.py 7
-            run_srt_step7
-    # step8: ---------------------------------------------> Create _1pcap.srt + CHECK MATCH
-        python scripts.py 8
-            run_srt_step8
-*** *** *** *** AUTOFIX fin_aud_2ali.srt AND rerun step8 (OR fix by hand fin_aud_1.srt AND rerun step7)
-    # step9: ---------------------------------------------> Create _1pcap_lest.srt
-        python scripts.py 9
-            run_srt_step9
-    # step_10: -------------------------------------------> fin_aud_1pcap_lest.MOV fin_aud_1pcap.MOV fin_aud_1pcap.MP4
-        python scripts.py 10 test/full
-            run_pupcaps_step10 test -> python scripts.py 10 full
-*** *** *** *** RUN SubF10 to FIT the LONGEST caption
-    # step11: --------------------------------------------> _2man/woman_lest.srt _2man/woman_lest.MOV _2man/woman_lest.MP4 _2man/woman.srt _2man/woman.MOV _2man/woman.MP4
-        python scripts.py 11 test/full DEBUG=1 GENDER=man/woman
-            run_pupcaps_step11 test -> python scripts.py 11 full
-*** *** *** *** RUN SubF10 to FIT the LONGEST caption
-    # step_12: -------------------------------------------> Collect illustration image, create IMAGES dir, choose_the_best_imgs
-        python scripts_img.py 12
-            asyncio.run(main(searches))
-            bk_all_imgs()
-            choose_the_best_imgs()
-            copy_all_sel_imgs()
-*** *** *** *** Base on searches.yt to select the correct IMAGE of VIDEO from images dir
-*** *** *** *** TRIM JPG images have redundant part
-    # step13: --------------------------------------------> Create time start/end of images (bk_img_time)
-        python scripts_img.py 13
-            time_start_img(searches)
-    # step_14: -------------------------------------------> Detect 4 silent points (bk_4_silent)
-        python scripts.py 14
-            detect_4_silent("./audio_ffmpegs/fin_aud_1pcap.srt")
-    # step15: --------------------------------------------> Scale images to 960*540
-        python scripts.py 15
-            scale_all_img(30)
-    # step16: --------------------------------------------> build_video_final.mp4, build_video_final.srt
-        python scripts.py 16
-            build_video_final test/full
-                test OUTPUT=out.mp4
-                test 38-48 OUTPUT=out.mp4
-                full OUTPUT=out.mp4'
-            transcript_video()
-    # step17: --------------------------------------------> TITLE.mp4, TITLE.jpg, TITLE.srt
-        1. dùng GPT kiểm tra TITLE và lưu vào Z_LIST
-        2. python scripts_img.py 17 1 -> create_thumb_wtext(num=1)
-        3. rename and copy TITLE.mp4, TITLE.jpg, TITLE.srt, TITLE.eze to Mobile
-        4. copy TITLE and ⚠️ Viewer Notice to WhatsApp
-    #===========================================================================
-    # long: ----------------------------------------------> CHECK_LONG
-        python scripts.py long
-    # help: ----------------------------------------------> HELP
-        python scripts.py help
-    ------\
-    ------/ TITLE.mp4, TITLE.jpg, TITLE.srt, TITLE.eze
-"""
     print(help_text)
 
 #=======================================================================================================================
@@ -5666,6 +5621,7 @@ if __name__ == "__main__":
             params["bk_file"]       = "1"
             params["fin_file"]      = "1"
             params["img_file"]      = "1"
+            params["dir"]           = "0000"
             for arg in sys.argv[2:]:
                 if arg.lower().startswith("audio_elabs="):
                     params["audio_elabs"] = arg.split("=")[1]
@@ -5683,10 +5639,12 @@ if __name__ == "__main__":
                     params["img_file"] = arg.split("=")[1]
                 elif arg.lower().startswith("img_file="):
                     params["img_file"] = arg.split("=")[1]
+                elif arg.lower().startswith("dir="):
+                    params["dir"] = arg.split("=")[1]
             # Call function
             sub_s0_move_old_data ( audio_elabs=params["audio_elabs"], audio_ffmpeg=params["audio_ffmpeg"],
                 audio_ffmpegs=params["audio_ffmpegs"], images=params["images"],
-                bk_file=params["bk_file"], fin_file=params["fin_file"], img_file=params["img_file"] )
+                bk_file=params["bk_file"], fin_file=params["fin_file"], img_file=params["img_file"], dir=params["dir"] )
         elif mode == "sub2": sub_s1_copy_4_img ()
         elif mode == "sub4": sub_s4_rm_bk_database()
 
@@ -5704,6 +5662,8 @@ if __name__ == "__main__":
             run_srt_step8()
             run_srt_step9()
         elif mode == "sub8":
+            convert_1920_1080()
+            #
             run_tts_step1()
             run_ffmpeg_step2()
             run_silent_step3()

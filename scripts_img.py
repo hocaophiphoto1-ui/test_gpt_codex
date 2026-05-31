@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cao Phi Ho
 # @Date:   2026/04/08, 21:35
-# @Last Modified by:   user
-# @Last Modified time: 2026/05/21, 17:02
+# @Last Modified by:   CPH
+# @Last Modified time: 2026/05/26, 03:26
 # @Last Modified time: 2026/04/08, 21:35 Create file
 
 
@@ -32,6 +32,16 @@ from scripts import get_scripts, get_searches
 
 MODEL_NAME      = "gemini-2.5-pro"                          # "gemini-3.1-pro-preview" # "gemini-2.5-flash"
 print(os.getenv("GEMINI_API_KEY"))
+
+
+# ********************************************************************************
+# CẤU HÌNH API MỚI - SERPER API
+# ĐẢM BẢO BẠN ĐÃ THAY "YOUR_API_KEY" BẰNG KEY CỦA MÌNH HOẶC ĐẶT BIẾN MÔI TRƯỜNG
+#SERPER_API_KEY = "a4687440bd9c99122679dc2d8143c04ad5a1dd42"
+SERPER_API_KEY = "c32d6d164e061c7a6b5cd7f162e33c23c9eb7163"
+
+BASE_URL = "https://google.serper.dev"
+# ********************************************************************************
 
 
 def check_genai():
@@ -111,13 +121,6 @@ fin_title = get_title()
 
 printf("fin_title: ", fin_title)
 
-# ********************************************************************************
-# CẤU HÌNH API MỚI - SERPER API
-# ĐẢM BẢO BẠN ĐÃ THAY "YOUR_API_KEY" BẰNG KEY CỦA MÌNH HOẶC ĐẶT BIẾN MÔI TRƯỜNG
-SERPER_API_KEY = "a4687440bd9c99122679dc2d8143c04ad5a1dd42"
-
-BASE_URL = "https://google.serper.dev"
-# ********************************************************************************
 
 
 last_call = 0
@@ -1666,7 +1669,6 @@ Write a summary of the main content of the video in 5 - 10 sentences.
     return bk_description
 
 
-
 def rename_all_final_file():
     if not fin_title:
         print("    ERROR: fin_title is empty. Cannot rename final files.")
@@ -1705,11 +1707,54 @@ def rename_all_final_file():
 
     return success
 
+
+def copy_all_final_file(dir="0000"):
+    if not fin_title:
+        print("    ERROR: fin_title is empty. Cannot copy final files.")
+        return False
+
+    base_dir = r"D:\94_YT\EasyEnglish"
+    target_dir = os.path.join(base_dir, dir)
+
+    files_to_copy = [
+        f"{fin_title}.mp4",
+        f"{fin_title}.srt",
+        f"{fin_title}.txt",
+        f"{fin_title}.eze",
+        f"{fin_title}.jpg",
+    ]
+
+    success = True
+
+    # Create target directory if not exists
+    os.makedirs(target_dir, exist_ok=True)
+    print(f"    CREATED DIR: {target_dir}")
+
+    # Copy files
+    for file_name in files_to_copy:
+        if not os.path.exists(file_name):
+            print(f"    WARNING: File {file_name} was not found. Skip copy.")
+            success = False
+            continue
+
+        dst_path = os.path.join(target_dir, file_name)
+
+        shutil.copy2(file_name, dst_path)
+        print(f"    COPIED: -> {dst_path}")
+
+    printf("\nSTEP 19 COPY DONE\n")
+
+    return success
+
+
 # =========================
 # RUN (GIỮ NGUYÊN)
 # =========================
 if __name__ == "__main__":
     searches = load_searches_from_file("./searches.yt")
+
+    # Giá trị mặc định
+    params = {"dir": "0000"}
 
     if len(sys.argv) < 2:
         print_help()
@@ -1734,8 +1779,12 @@ if __name__ == "__main__":
         elif mode == "17":
             create_thumb_wtext(num=6)
         elif mode == "18":
+            for arg in sys.argv[2:]:
+                if arg.lower().startswith("dir="):
+                    params["dir"] = arg.split("=")[1]
             create_description()
             rename_all_final_file()
+            copy_all_final_file(dir=params["dir"])
 
         elif mode == "check_genai":
             check_genai()

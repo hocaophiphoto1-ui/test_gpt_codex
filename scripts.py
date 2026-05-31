@@ -1765,19 +1765,82 @@ def run_srt_step6(nword=6):
         result_gap_time = best_gap_idx / 100.0 if found else (start_sec + (end_sec - start_sec) * target_ratio)
         return result_gap_time
 
+    def segment_char_len(words_list):
+        return len(" ".join(words_list))
+
     def is_proper_noun(w):
         clean = re.sub(r'[^\w]', '', w)
         return clean and clean[0].isupper()
 
+    def adjust_split_point_for_proper_nouns(words_list, split_point):
+        """Dịch điểm cắt nếu nó đang chẻ đôi 2 từ viết hoa liên tiếp như 'Beaufort Castle'."""
+        L = len(words_list)
+        if split_point <= 0 or split_point >= L:
+            return split_point
+
+        if not (is_proper_noun(words_list[split_point - 1]) and is_proper_noun(words_list[split_point])):
+            return split_point
+
+        left_split = split_point - 1
+        right_split = split_point + 1
+
+        candidates = []
+        if right_split < L:
+            candidates.append(right_split)
+        if left_split > 0:
+            candidates.append(left_split)
+
+        if not candidates:
+            return split_point
+
+        half = L / 2
+        return min(candidates, key=lambda candidate: abs(candidate - half))
+
+    def split_by_char_threshold(words_list, context=""):
+        """
+        Rule bắt buộc: segment có <= nword nhưng số ký tự >= short_segment_char_threshold
+        vẫn phải bị chia. Hàm này được dùng cho cả original block và segment con.
+        """
+        L = len(words_list)
+        total_char = segment_char_len(words_list)
+
+        if L < 2 or L > nword or total_char < short_segment_char_threshold:
+            return [words_list]
+
+        split_point = adjust_split_point_for_proper_nouns(words_list, max(1, L // 2))
+        split_point = max(1, min(split_point, L - 1))
+        label = f" [{context}]" if context else ""
+        print(
+            f"    [DEBUG - char_threshold{label}]   -> Length ({L}) <= nword ({nword}) but "
+            f"total_char ({total_char}) >= threshold ({short_segment_char_threshold}), "
+            f"splitting into two segments at index {split_point}."
+        )
+
+        result = []
+        for child in (words_list[:split_point], words_list[split_point:]):
+            # Recursive để xử lý trường hợp nửa câu vẫn còn quá dài.
+            result.extend(split_by_char_threshold(child, context=context))
+        return result
+
+    def enforce_char_threshold_on_segments(segments, context=""):
+        fixed_segments = []
+        for seg in segments:
+            fixed_segments.extend(split_by_char_threshold(seg, context=context))
+        return fixed_segments
+
     # --- HÀM HỖ TRỢ: CHIA ĐOẠN KHI KHÔNG CÓ DẤU PHẨY (hoặc đã quyết định bỏ qua dấu phẩy) ---
-    # Hàm này giờ nhận một danh sách từ và chia nhỏ nó theo các quy tắc >2*nword và >nword
+    # Hàm này nhận một danh sách từ và chia nhỏ nó theo các quy tắc >2*nword, >nword,
+    # đồng thời luôn áp dụng rule short_segment_char_threshold cho mọi segment con.
     def split_no_comma_logic(words_list_for_splitting):
         L = len(words_list_for_splitting)
         print(f"    [DEBUG - split_no_comma_logic] Called with {L} words: '{' '.join(words_list_for_splitting[:10])}{'...' if L > 10 else ''}'")
 
         if L <= nword:
-            print(f"    [DEBUG - split_no_comma_logic]   -> Length ({L}) <= nword ({nword}), returning as single segment.")
-            return [words_list_for_splitting]
+            print(
+                f"    [DEBUG - split_no_comma_logic]   -> Length ({L}) <= nword ({nword}), "
+                f"checking char threshold before returning."
+            )
+            return split_by_char_threshold(words_list_for_splitting, context="split_no_comma_logic")
 
         segments = []
         current_idx = 0
@@ -1785,52 +1848,51 @@ def run_srt_step6(nword=6):
         while current_idx < L:
             remaining_len = L - current_idx
 
-            if remaining_len > 2 * nword: # + nếu không có "," thì xét nếu > 2*nword word thì tách thành nhóm nword trước, phần còn lại lại xét tiếp theo nhóm nword
+            if remaining_len > 2 * nword:  # Nếu > 2*nword word thì tách thành nhóm nword trước.
                 split_point = current_idx + nword
                 print(f"    [DEBUG - split_no_comma_logic]   -> Remaining > 2*nword ({remaining_len} > {2*nword}). Cutting {nword} words.")
-            elif remaining_len > nword: # + nếu > nword word thì chia thành 2 nhóm
+            elif remaining_len > nword:  # Nếu > nword word thì chia thành 2 nhóm.
                 split_point = current_idx + remaining_len // 2
                 print(f"    [DEBUG - split_no_comma_logic]   -> Remaining > nword ({remaining_len} > {nword}). Cutting into two halves.")
 
-                # Ưu tiên bảo vệ tên riêng (chỉ khi chia đôi)
-                # Kiểm tra từ tại split_point và từ trước nó
-                # Nếu cả hai đều là Proper Noun, cố gắng dịch điểm cắt
+                # Ưu tiên bảo vệ tên riêng (chỉ khi chia đôi).
                 original_split_point = split_point
-                if split_point > current_idx and split_point < L: # Đảm bảo split_point hợp lệ
-                    if is_proper_noun(words_list_for_splitting[split_point-1]) and is_proper_noun(words_list_for_splitting[split_point]):
-                        # Cố gắng dịch sang phải (sau cả cặp tên riêng)
-                        if split_point + 1 < L and (L - (split_point + 1)) >= (remaining_len // 2) - 1: # Đảm bảo phần còn lại không quá ngắn
-                            split_point += 1
-                        # Nếu không thể, thử dịch sang trái (trước cả cặp tên riêng)
-                        elif split_point - 1 > current_idx and (split_point - 1 - current_idx) >= (remaining_len // 2) - 1: # Đảm bảo phần cắt ra không quá ngắn
-                            split_point -= 1
+                split_point = current_idx + adjust_split_point_for_proper_nouns(
+                    words_list_for_splitting[current_idx:L],
+                    split_point - current_idx,
+                )
 
-                        if split_point != original_split_point:
-                            print(f"    [DEBUG - split_no_comma_logic]     -> Adjusted split_point from {original_split_point} to {split_point} to protect Proper Nouns.")
-
-            else: # Phần còn lại <= nword, thêm vào đoạn cuối
-                split_point = L # Đặt split_point là cuối cùng để lấy hết phần còn lại
+                if split_point != original_split_point:
+                    print(
+                        f"    [DEBUG - split_no_comma_logic]     -> Adjusted split_point from "
+                        f"{original_split_point} to {split_point} to protect Proper Nouns."
+                    )
+            else:  # Phần còn lại <= nword, thêm vào đoạn cuối.
+                split_point = L
                 print(f"    [DEBUG - split_no_comma_logic]   -> Remaining <= nword ({remaining_len} <= {nword}). Taking all remaining words.")
 
-            # Đảm bảo split_point hợp lệ (ít nhất 1 từ trong segment và không vượt quá giới hạn)
+            # Đảm bảo split_point hợp lệ (ít nhất 1 từ trong segment và không vượt quá giới hạn).
             split_point = max(current_idx + 1, min(split_point, L))
 
-            # Gộp đoạn cuối quá ngắn vào đoạn trước đó nếu có
-            # Nếu chỉ còn lại một đoạn nhỏ (ví dụ < nword/2) và có đoạn trước để gộp
+            # Gộp đoạn cuối quá ngắn vào đoạn trước đó nếu có.
             if (L - split_point) > 0 and (L - split_point) < (nword // 2) and len(segments) > 0:
                 print(f"    [DEBUG - split_no_comma_logic]   -> Remaining words ({L - split_point}) too small, merging with previous segment.")
                 segments[-1].extend(words_list_for_splitting[current_idx:])
-                current_idx = L # Đánh dấu là đã xử lý hết
-                break # Thoát vòng lặp
+                current_idx = L
+                break
 
-            segments.append(words_list_for_splitting[current_idx : split_point])
+            segment_to_add = words_list_for_splitting[current_idx:split_point]
+            segments.append(segment_to_add)
             current_idx = split_point
 
-            print(f"    [DEBUG - split_no_comma_logic]   -> Added segment ({len(segments[-1])} words). Next start index: {current_idx}. Current segments count: {len(segments)}")
+            print(
+                f"    [DEBUG - split_no_comma_logic]   -> Added segment ({len(segment_to_add)} words). "
+                f"Next start index: {current_idx}. Current segments count: {len(segments)}"
+            )
 
+        segments = enforce_char_threshold_on_segments(segments, context="split_no_comma_logic_final")
         print(f"    [DEBUG - split_no_comma_logic]   -> Final segments for this call: {[len(s) for s in segments]} words.")
         return segments
-
 
     # --- LOGIC CHIA ĐOẠN THEO USER (chính) ---
     def get_split_segments(words):
@@ -1841,7 +1903,7 @@ def run_srt_step6(nword=6):
         #    - total_char < threshold: giữ nguyên
         #    - total_char >= threshold: chia làm 2 đoạn (mặc định 3/3 khi nword=6)
         if L <= nword:
-            total_char = len(" ".join(words))
+            total_char = segment_char_len(words)
             if total_char < short_segment_char_threshold:
                 print(
                     f"    [DEBUG - get_split_segments]   -> Length ({L}) <= nword ({nword}) and "
@@ -1855,110 +1917,108 @@ def run_srt_step6(nword=6):
                 )
                 return [words]
 
-            split_point = max(1, L // 2)
-            print(
-                f"    [DEBUG - get_split_segments]   -> Length ({L}) <= nword ({nword}) but "
-                f"total_char ({total_char}) >= threshold ({short_segment_char_threshold}), splitting into two segments at index {split_point}."
-            )
-            return [words[:split_point], words[split_point:]]
+            return split_by_char_threshold(words, context="get_split_segments")
 
         comma_indices = [i for i, w in enumerate(words) if "," in w and i < L - 1]
         print(f"    [DEBUG - get_split_segments]   -> Comma indices: {comma_indices}")
 
-        # Danh sách để lưu các segment cuối cùng sau khi xử lý
+        # Danh sách để lưu các segment cuối cùng sau khi xử lý.
         final_segments_result = []
 
-        # Xử lý khi CÓ dấu phẩy
+        # Xử lý khi CÓ dấu phẩy.
         if comma_indices:
             raw_segments = []
             prev = 0
             for idx in comma_indices:
-                raw_segments.append(words[prev:idx+1])
+                raw_segments.append(words[prev:idx + 1])
                 prev = idx + 1
             raw_segments.append(words[prev:])
 
             print(f"    [DEBUG - get_split_segments]   -> Initial raw segments based on commas: {[len(s) for s in raw_segments]} words.")
 
-            # * nếu có đoạn 1/2 word thì xem như câu ko có "," và chi theo câu có số lượng word > nword
+            # Nếu có đoạn 1/2 word thì xem như câu không có dấu phẩy và chia theo số lượng word.
             for seg in raw_segments:
                 if len(seg) <= 2:
-                    print(f"    [DEBUG - get_split_segments]   -> Found small segment (len {len(seg)} <= 2) in raw_segments. Treating as no commas. Calling split_no_comma_logic for whole original sentence.")
-                    return split_no_comma_logic(words) # Chuyển toàn bộ câu gốc cho split_no_comma_logic
+                    print(
+                        f"    [DEBUG - get_split_segments]   -> Found small segment (len {len(seg)} <= 2) in raw_segments. "
+                        f"Treating as no commas. Calling split_no_comma_logic for whole original sentence."
+                    )
+                    return split_no_comma_logic(words)
 
-            # + nếu trong câu có "," chia câu thành 2 đoạn
+            # Nếu trong câu có dấu phẩy chia câu thành 2 đoạn.
             if len(raw_segments) == 2:
                 seg1, seg2 = raw_segments[0], raw_segments[1]
                 print(f"    [DEBUG - get_split_segments]   -> Handling 2 raw segments: Seg1 (len={len(seg1)}), Seg2 (len={len(seg2)})")
 
-                # Sau khi tách, mỗi đoạn sẽ được xét tiếp theo nword word
+                # Sau khi tách, mỗi đoạn sẽ được xét tiếp theo nword word và short_segment_char_threshold.
                 final_segments_result.extend(split_no_comma_logic(seg1))
                 final_segments_result.extend(split_no_comma_logic(seg2))
-                return final_segments_result
+                return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_2comma_final")
 
-            # + nếu trong câu có "," chia câu thành 3 đoạn (1, 2, 3) (hoặc nhiều hơn 3, gộp lại thành 3)
+            # Nếu trong câu có dấu phẩy chia câu thành 3 đoạn (1, 2, 3) (hoặc nhiều hơn 3, gộp lại thành 3).
             if len(raw_segments) >= 3:
                 seg1 = raw_segments[0]
                 seg2 = raw_segments[1]
-                seg3_combined = []
-                for s in raw_segments[2:]: # Gộp tất cả các đoạn từ thứ 3 trở đi vào seg3_combined
-                    seg3_combined.extend(s)
-                seg3 = seg3_combined
+                seg3 = []
+                for s in raw_segments[2:]:  # Gộp tất cả các đoạn từ thứ 3 trở đi vào seg3.
+                    seg3.extend(s)
 
                 print(f"    [DEBUG - get_split_segments]   -> Handling 3+ raw segments: Seg1 (len={len(seg1)}), Seg2 (len={len(seg2)}), Seg3 (len={len(seg3)})")
 
-                # * nếu 2 <= 2*nword thì gọp vào 1 nếu sl word 1 < sl word 3, gọp vào 3 nếu sl word 3 < sl word 1
+                # Nếu 2 <= 2*nword thì gộp vào 1 nếu sl word 1 < sl word 3, gộp vào 3 nếu sl word 3 < sl word 1.
                 if len(seg2) <= 2 * nword:
                     print(f"    [DEBUG - get_split_segments]     -> Seg2 (len={len(seg2)}) <= 2*nword ({2*nword}). Applying merge logic for Seg2.")
-                    if len(seg1) < len(seg3): # Gộp seg2 vào seg1
+                    if len(seg1) < len(seg3):
                         seg1.extend(seg2)
                         print(f"    [DEBUG - get_split_segments]       -> Merged Seg2 into Seg1. New Seg1 len: {len(seg1)}")
-                    else: # Gộp seg2 vào seg3
-                        seg3.insert(0, *seg2)
+                    else:
+                        seg3 = seg2 + seg3
                         print(f"    [DEBUG - get_split_segments]       -> Merged Seg2 into Seg3. New Seg3 len: {len(seg3)}")
 
-                    # Sau gộp sẽ xét tiếp theo nword word
                     final_segments_result.extend(split_no_comma_logic(seg1))
                     final_segments_result.extend(split_no_comma_logic(seg3))
-                    return final_segments_result
+                    return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_3comma_seg2_final")
 
-                # * nếu 1 có 1/2 word thì xem như câu ko có "," và gọp vào 2 đề chia.
+                # Nếu 1 có 1/2 word thì xem như câu không có dấu phẩy và gộp vào 2 để chia.
                 if len(seg1) <= 2:
-                    print(f"    [DEBUG - get_split_segments]     -> Seg1 (len={len(seg1)}) <= 2 words. Merging Seg1 into Seg2 and deferring to split_no_comma_logic for merged (Seg1+Seg2) and Seg3.")
-                    seg2.insert(0, *seg1) # Gộp seg1 vào seg2
-                    # Sau đó xử lý 2 đoạn đã gộp (Seg1+Seg2) và Seg3
+                    print(
+                        f"    [DEBUG - get_split_segments]     -> Seg1 (len={len(seg1)}) <= 2 words. "
+                        f"Merging Seg1 into Seg2 and deferring to split_no_comma_logic for merged (Seg1+Seg2) and Seg3."
+                    )
+                    seg2 = seg1 + seg2
                     final_segments_result.extend(split_no_comma_logic(seg2))
                     final_segments_result.extend(split_no_comma_logic(seg3))
-                    return final_segments_result
+                    return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_3comma_seg1_small_final")
 
-                # * Nếu 2 có 1/2 word thì xem như câu ko có "," và gọp vào 3 để chia tiếp theo có số lượng word > nword
+                # Nếu 2 có 1/2 word thì xem như câu không có dấu phẩy và gộp vào 3 để chia tiếp theo có số lượng word > nword.
                 if len(seg2) <= 2:
-                    print(f"    [DEBUG - get_split_segments]     -> Seg2 (len={len(seg2)}) <= 2 words. Merging Seg2 into Seg3 and deferring to split_no_comma_logic for Seg1 and merged (Seg2+Seg3).")
-                    seg3.insert(0, *seg2) # Gộp seg2 vào seg3
-                    # Sau đó xử lý 2 đoạn Seg1 và Seg2+Seg3
+                    print(
+                        f"    [DEBUG - get_split_segments]     -> Seg2 (len={len(seg2)}) <= 2 words. "
+                        f"Merging Seg2 into Seg3 and deferring to split_no_comma_logic for Seg1 and merged (Seg2+Seg3)."
+                    )
+                    seg3 = seg2 + seg3
                     final_segments_result.extend(split_no_comma_logic(seg1))
                     final_segments_result.extend(split_no_comma_logic(seg3))
-                    return final_segments_result
+                    return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_3comma_seg2_small_final")
 
-                # * nếu 3 <= 2*word, thì gọp 3 vào 2 rồi xét tiếp cho 2 gọp và 1
+                # Nếu 3 <= 2*nword, thì gộp 3 vào 2 rồi xét tiếp cho 2 gộp và 1.
                 if len(seg3) <= 2 * nword:
                     print(f"    [DEBUG - get_split_segments]     -> Seg3 (len={len(seg3)}) <= 2*nword ({2*nword}). Merging Seg3 into Seg2.")
                     seg2.extend(seg3)
-                    # Sau đó xử lý 2 đoạn Seg1 và Seg2 (đã gộp)
                     final_segments_result.extend(split_no_comma_logic(seg1))
                     final_segments_result.extend(split_no_comma_logic(seg2))
-                    return final_segments_result
+                    return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_3comma_seg3_final")
 
-                # * nếu 1 >2 word thì tách đoạn đó thành đoạn độc lập, xét tiếp 2 tương tự như 1, nếu 2 <=2*word thì gọp vào 3 chia, nếu 2 >2 word thì tách độc lập ...
-                # Nếu không có điều kiện gộp nào phía trên được thỏa mãn, xử lý từng đoạn độc lập
+                # Nếu không có điều kiện gộp nào phía trên được thỏa mãn, xử lý từng đoạn độc lập.
                 print(f"    [DEBUG - get_split_segments]     -> No merge conditions met. Splitting Seg1, Seg2, Seg3 independently using split_no_comma_logic.")
                 final_segments_result.extend(split_no_comma_logic(seg1))
                 final_segments_result.extend(split_no_comma_logic(seg2))
                 final_segments_result.extend(split_no_comma_logic(seg3))
-                return final_segments_result
+                return enforce_char_threshold_on_segments(final_segments_result, context="get_split_segments_3comma_independent_final")
 
-        else: # Xử lý khi KHÔNG CÓ dấu phẩy
-            print(f"    [DEBUG - get_split_segments]   -> No commas found. Deferring to split_no_comma_logic for the whole sentence.")
-            return split_no_comma_logic(words)
+        # Xử lý khi KHÔNG CÓ dấu phẩy.
+        print(f"    [DEBUG - get_split_segments]   -> No commas found. Deferring to split_no_comma_logic for the whole sentence.")
+        return split_no_comma_logic(words)
 
     # --- THỰC THI CHÍNH ---
     with open(in_path, "r", encoding="utf-8") as f:
@@ -1973,14 +2033,13 @@ def run_srt_step6(nword=6):
 
     new_blocks = []
     if blocks:
-        new_blocks.append(f"1\n{blocks[0][1]}\n    ") # Block 1 (Dummy)
+        new_blocks.append(f"1\n{blocks[0][1]}\n    ")  # Block 1 (Dummy)
     else:
         print(f"    [WARNING] No blocks found in input SRT. Output will be empty.")
 
-
     current_idx = 2 if blocks else 1
     for b_num, b in enumerate(blocks[1:]):
-        printf(f"\n    [DEBUG - MAIN LOOP] Processing original block #{b_num+2}: {b[0]}")
+        printf(f"\n    [DEBUG - MAIN LOOP] Processing original block #{b_num + 2}: {b[0]}")
         idx, timeframe, text = b
         times = timeframe.split(" --> ")
         start_f, end_f = to_sec(times[0]), to_sec(times[1])
@@ -2005,7 +2064,7 @@ def run_srt_step6(nword=6):
         num_seg = len(segments)
         print(f"    [DEBUG - MAIN LOOP]   -> Final segments count: {num_seg}, lengths: {[len(s) for s in segments]}")
 
-        # Tính toán mốc thời gian dựa trên VDA
+        # Tính toán mốc thời gian dựa trên VDA.
         time_points = [start_f]
         if num_seg > 1:
             for i in range(1, num_seg):
@@ -2015,7 +2074,8 @@ def run_srt_step6(nword=6):
         time_points.append(end_f)
         print(f"    [DEBUG - MAIN LOOP]   -> Calculated time points: {[f'{t:.2f}' for t in time_points]}")
 
-        # Gộp các đoạn cuối cùng nếu có quá nhiều đoạn nhỏ (áp dụng VDA)
+        # Gộp các đoạn cuối cùng nếu có quá nhiều đoạn nhỏ (áp dụng VDA).
+        # Sau khi gộp, check lại short_segment_char_threshold để tránh tạo lại block > 40 ký tự.
         final_segments_with_vda = []
         current_time_idx = 0
         while current_time_idx < num_seg:
@@ -2023,42 +2083,39 @@ def run_srt_step6(nword=6):
             current_start_time = time_points[current_time_idx]
             current_end_time = time_points[current_time_idx + 1]
 
-            # Nếu đoạn hiện tại quá ngắn (ví dụ, 1-2 từ) và không phải là đoạn cuối cùng
+            # Nếu đoạn hiện tại quá ngắn (ví dụ, 1-2 từ) và không phải là đoạn cuối cùng,
             # và nếu đoạn tiếp theo cũng không quá dài, thì gộp lại để tránh các đoạn quá bé.
-            # Ngưỡng gộp: Ví dụ, nếu đoạn hiện tại < nword/2 và đoạn tiếp theo cũng < nword
             if len(current_segment) < (nword // 2) and (current_time_idx + 1 < num_seg):
                 next_segment = segments[current_time_idx + 1]
-                if len(next_segment) < nword: # Nếu đoạn tiếp theo cũng không quá dài
+                merged_candidate = current_segment + next_segment
+                if len(next_segment) < nword and segment_char_len(merged_candidate) < short_segment_char_threshold:
                     print(f"    [DEBUG - MAIN LOOP]   -> Merging small segment ({len(current_segment)} words) with next segment ({len(next_segment)} words).")
-                    current_segment.extend(next_segment)
-                    current_end_time = time_points[current_time_idx + 2] # Cập nhật end_time sang đoạn tiếp theo
-                    current_time_idx += 1 # Bỏ qua đoạn tiếp theo đã gộp
+                    current_segment = merged_candidate
+                    current_end_time = time_points[current_time_idx + 2]
+                    current_time_idx += 1
+                elif len(next_segment) < nword:
+                    print(
+                        f"    [DEBUG - MAIN LOOP]   -> Skip small-segment merge because merged char length "
+                        f"({segment_char_len(merged_candidate)}) would reach threshold ({short_segment_char_threshold})."
+                    )
 
-            final_segments_with_vda.append((current_segment, current_start_time, current_end_time))
+            checked_segments = split_by_char_threshold(current_segment, context="vda_merge_final")
+            if len(checked_segments) == 1:
+                final_segments_with_vda.append((checked_segments[0], current_start_time, current_end_time))
+            else:
+                split_count = len(checked_segments)
+                for split_i, checked_segment in enumerate(checked_segments):
+                    seg_start = current_start_time + (current_end_time - current_start_time) * split_i / split_count
+                    seg_end = current_start_time + (current_end_time - current_start_time) * (split_i + 1) / split_count
+                    final_segments_with_vda.append((checked_segment, seg_start, seg_end))
+
             current_time_idx += 1
 
-        # Cập nhật time_points sau khi gộp VDA
-        # Điều này hơi phức tạp vì VDA cần các mốc thời gian đã được gộp.
-        # Để đơn giản, tôi sẽ gộp các đoạn TỪ BÂY GIỜ và sau đó phân bổ lại thời gian
-        # Điều này có thể không chính xác hoàn toàn với VDA nếu các đoạn gộp có khoảng lặng lớn ở giữa.
-        # Cần một chiến lược VDA tốt hơn cho việc gộp đoạn nhỏ.
-        # Tạm thời, tôi sẽ chỉ gộp TEXT và sau đó tính lại time_points dựa trên số đoạn mới.
-
-        # Nếu đã có logic VDA phức tạp, việc thay đổi số lượng đoạn sẽ cần tính toán lại các mốc thời gian.
-        # Với mục đích hiện tại (debug và logic cắt), tôi sẽ giữ nguyên cách gán segments và time_points như cũ
-        # và chỉ thêm marker vào đoạn cuối của original block, không phải cuối của sub-segments.
-        # Logic gộp đoạn nhỏ ở đây có thể làm thay đổi số lượng đoạn so với num_seg ban đầu.
-        # Cần điều chỉnh lại time_points cho phù hợp với segments sau khi gộp.
-
-        # Cách đơn giản hơn để xử lý marker và VDA:
-        # Gắn marker vào đoạn cuối CỦA TỪNG CHUỖI GỐC sau khi split_no_comma_logic xử lý.
-        # Tức là chỉ đoạn cuối của *toàn bộ block ban đầu* nhận marker.
-
-        # Thay đổi logic gán marker để chỉ đoạn cuối cùng của CẢ KHỐI được gắn marker.
+        # Chỉ đoạn cuối của TOÀN BỘ block gốc nhận marker.
         merged_seg_count = len(final_segments_with_vda)
         for i, (seg, s_t, e_t) in enumerate(final_segments_with_vda):
             seg_text = " ".join(seg)
-            if i == merged_seg_count - 1: # Chỉ gắn marker cho đoạn cuối của TOÀN BỘ block gốc
+            if i == merged_seg_count - 1:
                 seg_text += marker
 
             new_blocks.append(f"{current_idx}\n{format_timestamp(s_t)} --> {format_timestamp(e_t)}\n{seg_text}")
@@ -2068,7 +2125,7 @@ def run_srt_step6(nword=6):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n\n".join(new_blocks) + "\n\n")
 
-    print(f"    --> [SUCCESS] Created {out_path} with {current_idx-1} blocks.")
+    print(f"    --> [SUCCESS] Created {out_path} with {current_idx - 1} blocks.")
 
     verify_srt_consistency(in_path, out_path)
 
